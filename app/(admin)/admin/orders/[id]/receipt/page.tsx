@@ -21,6 +21,8 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
   const { id } = await params;
   const order = await getOrder(id);
   if (!order) notFound();
+  const inStore = order.order_source === "in_store";
+  const itemNames = new Map(order.order_items.map((i) => [i.id, i.product_name]));
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -45,17 +47,27 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
           </div>
         </header>
 
+        {inStore && (
+          <div className="rounded bg-black py-2 text-center text-lg font-extrabold tracking-[0.3em] text-white print:[print-color-adjust:exact]">
+            IN-STORE SALE
+          </div>
+        )}
+
         <section>
-          <div className="text-xs font-semibold uppercase tracking-wide">Deliver to</div>
+          <div className="text-xs font-semibold uppercase tracking-wide">{inStore ? "Customer" : "Deliver to"}</div>
           <div className="mt-1 text-xl font-bold">{order.customer_name}</div>
-          <div className="mt-1 text-lg font-semibold tabular-nums">
-            {order.phone1}
-            {order.phone2 && <span> &nbsp;/&nbsp; {order.phone2}</span>}
-          </div>
-          <div className="mt-2 whitespace-pre-wrap text-base">{order.address}</div>
-          <div className="mt-2 inline-block rounded border border-black px-2 py-0.5 text-sm font-semibold">
-            Zone: {order.shipping_zones?.zone_name ?? "—"}
-          </div>
+          {(order.phone1 || order.phone2) && (
+            <div className="mt-1 text-lg font-semibold tabular-nums">
+              {order.phone1}
+              {order.phone2 && <span> &nbsp;/&nbsp; {order.phone2}</span>}
+            </div>
+          )}
+          {order.address && <div className="mt-2 whitespace-pre-wrap text-base">{order.address}</div>}
+          {!inStore && (
+            <div className="mt-2 inline-block rounded border border-black px-2 py-0.5 text-sm font-semibold">
+              Zone: {order.shipping_zones?.zone_name ?? "—"}
+            </div>
+          )}
         </section>
 
         <section>
@@ -71,7 +83,10 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
             <tbody>
               {order.order_items.map((item) => (
                 <tr key={item.id} className="border-b border-neutral-300">
-                  <td className="py-1.5">{item.product_name}</td>
+                  <td className="py-1.5">
+                    {item.product_name}
+                    {item.returned_quantity > 0 && <span className="text-xs"> ({item.returned_quantity} returned)</span>}
+                  </td>
                   <td className="py-1.5 text-right tabular-nums">{item.quantity}</td>
                   <td className="py-1.5 text-right tabular-nums">{formatMoney(item.unit_price)}</td>
                   <td className="py-1.5 text-right tabular-nums">{formatMoney(item.unit_price * item.quantity)}</td>
@@ -90,15 +105,60 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
                 <dd className="tabular-nums">−{formatMoney(order.discount_amount)}</dd>
               </div>
             )}
-            <div className="flex justify-between">
-              <dt>Shipping</dt>
-              <dd className="tabular-nums">{formatMoney(order.shipping_fee)}</dd>
+            {!inStore && (
+              <div className="flex justify-between">
+                <dt>Shipping</dt>
+                <dd className="tabular-nums">{formatMoney(order.shipping_fee)}</dd>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-black pt-0.5 font-semibold">
+              <dt>Total</dt>
+              <dd className="tabular-nums">{formatMoney(order.total_amount)}</dd>
             </div>
+            {order.refunded_amount > 0 && (
+              <>
+                <div className="flex justify-between">
+                  <dt>Refunded</dt>
+                  <dd className="tabular-nums">−{formatMoney(order.refunded_amount)}</dd>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <dt>Net amount</dt>
+                  <dd className="tabular-nums">{formatMoney(order.total_amount - order.refunded_amount)}</dd>
+                </div>
+              </>
+            )}
           </dl>
         </section>
 
+        {order.order_returns.length > 0 && (
+          <section className="space-y-1 text-sm">
+            <div className="text-xs font-semibold uppercase tracking-wide">Returns</div>
+            {[...order.order_returns]
+              .sort((a, b) => a.created_at.localeCompare(b.created_at))
+              .map((r) => (
+                <div key={r.id} className="flex justify-between gap-4 border-b border-neutral-300 py-1">
+                  <span>
+                    {formatDateTime(r.created_at)}:{" "}
+                    {r.order_return_items.map((ri) => `${ri.quantity} × ${itemNames.get(ri.order_item_id) ?? "Item"}`).join(", ")}
+                    {r.reason ? ` (${r.reason})` : ""}
+                  </span>
+                  <span className="shrink-0 tabular-nums">−{formatMoney(r.refund_amount)}</span>
+                </div>
+              ))}
+          </section>
+        )}
+
         <section className="rounded border-2 border-black p-3 text-center">
-          {order.payment_status === "paid" ? (
+          {inStore ? (
+            <>
+              <div className="text-xs font-semibold uppercase tracking-wide">
+                {order.payment_status === "paid" ? "Paid in store" : "Payment pending"} · {PAYMENT_METHOD_LABELS[order.payment_method]}
+              </div>
+              <div className="text-4xl font-extrabold tabular-nums">
+                {formatMoney(order.total_amount - order.refunded_amount)}
+              </div>
+            </>
+          ) : order.payment_status === "paid" ? (
             <>
               <div className="text-xs font-semibold uppercase tracking-wide">
                 Paid via {PAYMENT_METHOD_LABELS[order.payment_method]}: collect

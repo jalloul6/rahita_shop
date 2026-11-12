@@ -67,16 +67,16 @@ async function DashboardContent() {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Total sales" value={formatMoney(kpis.total_sales)} hint="Delivered or paid orders" />
+        <Stat label="Net revenue" value={formatMoney(kpis.total_sales)} hint="Delivered or paid orders, after refunds" />
         <Stat
           label="Today"
           value={formatMoney(kpis.today_sales)}
-          hint={`${kpis.today_orders} order${kpis.today_orders === 1 ? "" : "s"} placed, excl. canceled`}
+          hint={`${kpis.today_orders} order${kpis.today_orders === 1 ? "" : "s"} placed, excl. canceled, net of refunds`}
         />
         <Stat
           label="This month"
           value={formatMoney(kpis.month_sales)}
-          hint={`${kpis.month_orders} order${kpis.month_orders === 1 ? "" : "s"}, excl. canceled`}
+          hint={`${kpis.month_orders} order${kpis.month_orders === 1 ? "" : "s"}, excl. canceled, net of refunds`}
         />
         <Stat
           label="In progress"
@@ -86,7 +86,7 @@ async function DashboardContent() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Stat
           label="Out for delivery"
           value={String(kpis.out_for_delivery)}
@@ -94,6 +94,7 @@ async function DashboardContent() {
           href="/admin/orders?status=out_for_delivery"
         />
         <Stat label="Whish payments to confirm" value={String(kpis.unpaid_whish)} hint="Whish orders still marked unpaid" />
+        <Stat label="Refunds" value={formatMoney(kpis.refunds_total ?? 0)} hint="Total refunded to customers" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

@@ -7,10 +7,12 @@ export type OrderStatus =
   | "processing"
   | "out_for_delivery"
   | "delivered"
+  | "partially_returned"
   | "returned"
   | "canceled";
 
-export type PaymentMethod = "cod" | "whish";
+export type PaymentMethod = "cod" | "whish" | "cash";
+export type OrderSource = "online" | "in_store" | "phone";
 export type PaymentStatus = "pending" | "paid";
 export type DiscountType = "percentage" | "fixed";
 
@@ -50,7 +52,7 @@ type Order = {
   phone1: string;
   phone2: string | null;
   address: string;
-  shipping_zone_id: string;
+  shipping_zone_id: string | null;
   status: OrderStatus;
   subtotal: number;
   shipping_fee: number;
@@ -60,6 +62,8 @@ type Order = {
   payment_status: PaymentStatus;
   promo_code: string | null;
   discount_amount: number;
+  order_source: OrderSource;
+  refunded_amount: number;
   created_at: string;
   updated_at: string;
 };
@@ -71,11 +75,30 @@ type OrderItem = {
   product_name: string;
   quantity: number;
   unit_price: number;
+  returned_quantity: number;
+};
+
+type OrderReturn = {
+  id: string;
+  order_id: string;
+  refund_amount: number;
+  restocked: boolean;
+  reason: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+type OrderReturnItem = {
+  id: string;
+  return_id: string;
+  order_item_id: string;
+  quantity: number;
 };
 
 export type DashboardStats = {
   kpis: {
     total_sales: number;
+    refunds_total: number;
     today_sales: number;
     today_orders: number;
     month_sales: number;
@@ -111,7 +134,7 @@ export type Database = {
             | "customer_name"
             | "phone1"
             | "address"
-            | "shipping_zone_id"
+
             | "subtotal"
             | "shipping_fee"
             | "total_amount"
@@ -155,6 +178,41 @@ export type Database = {
         Update: { theme?: string; updated_at?: string };
         Relationships: [];
       };
+      order_returns: {
+        Row: OrderReturn;
+        Insert: Partial<OrderReturn> & Pick<OrderReturn, "order_id" | "restocked">;
+        Update: Partial<OrderReturn>;
+        Relationships: [
+          {
+            foreignKeyName: "order_returns_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_return_items: {
+        Row: OrderReturnItem;
+        Insert: Partial<OrderReturnItem> & Pick<OrderReturnItem, "return_id" | "order_item_id" | "quantity">;
+        Update: Partial<OrderReturnItem>;
+        Relationships: [
+          {
+            foreignKeyName: "order_return_items_return_id_fkey";
+            columns: ["return_id"];
+            isOneToOne: false;
+            referencedRelation: "order_returns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_return_items_order_item_id_fkey";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       promo_codes: {
         Row: PromoCode;
         Insert: Partial<PromoCode> & Pick<PromoCode, "code" | "discount_type" | "discount_value">;
@@ -178,6 +236,32 @@ export type Database = {
           p_promo_code?: string | null;
         };
         Returns: { order_id: string; order_number: number; total_amount: number; discount_amount: number }[];
+      };
+      admin_create_order: {
+        Args: {
+          p_source: "in_store" | "phone";
+          p_customer_name: string;
+          p_phone1: string;
+          p_phone2: string | null;
+          p_address: string;
+          p_shipping_zone_id: string | null;
+          p_items: { product_id: string; quantity: number }[];
+          p_payment_method: PaymentMethod;
+          p_promo_code?: string | null;
+          p_manual_discount?: number;
+          p_notes?: string | null;
+        };
+        Returns: { order_id: string; order_number: number; total_amount: number }[];
+      };
+      process_return: {
+        Args: {
+          p_order_id: string;
+          p_items: { order_item_id: string; quantity: number }[];
+          p_restock: boolean;
+          p_refund_amount: number;
+          p_reason?: string | null;
+        };
+        Returns: string;
       };
       validate_promo_code: {
         Args: { p_code: string };

@@ -1,8 +1,9 @@
-import type { OrderStatus, PaymentMethod } from "@/types/database";
+import type { OrderSource, OrderStatus, PaymentMethod, PaymentStatus } from "@/types/database";
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cod: "Cash on Delivery",
   whish: "Whish Money",
+  cash: "Cash",
 };
 
 // What the courier must collect: nothing if already paid (e.g. Whish transfer confirmed).
@@ -15,6 +16,7 @@ export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
   { value: "processing", label: "Processing" },
   { value: "out_for_delivery", label: "Out for Delivery" },
   { value: "delivered", label: "Delivered" },
+  { value: "partially_returned", label: "Partially Returned" },
   { value: "returned", label: "Returned" },
   { value: "canceled", label: "Canceled" },
 ];
@@ -22,7 +24,9 @@ export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
 // Happy path shown in the stepper.
 export const FLOW: OrderStatus[] = ["pending", "processing", "out_for_delivery", "delivered"];
 
-// Allowed moves from each status. Canceled and Returned are final (also enforced by a DB trigger).
+// Allowed status-button moves. Canceled and Returned are final (also enforced by a DB trigger).
+// Delivered / paid orders go back through Return / Refund (process_return), not a status button;
+// "returned" here is for parcels the courier brings back undelivered.
 export function allowedTransitions(status: OrderStatus): OrderStatus[] {
   switch (status) {
     case "pending":
@@ -31,8 +35,6 @@ export function allowedTransitions(status: OrderStatus): OrderStatus[] {
       return ["out_for_delivery", "canceled"];
     case "out_for_delivery":
       return ["delivered", "returned"];
-    case "delivered":
-      return ["returned"];
     default:
       return [];
   }
@@ -43,6 +45,7 @@ export const ACTION_LABELS: Record<OrderStatus, string> = {
   processing: "Start processing",
   out_for_delivery: "Send out for delivery",
   delivered: "Mark delivered",
+  partially_returned: "Partially returned",
   returned: "Mark returned",
   canceled: "Cancel order",
 };
@@ -67,4 +70,17 @@ export function orderRef(orderNumber: number) {
 // "RH-1042" -> true (format check only; the page never looks the order up)
 export function isOrderRef(value: string) {
   return /^RH-\d{4,12}$/.test(value);
+}
+
+export const ORDER_SOURCE_LABELS: Record<OrderSource, string> = {
+  online: "Online",
+  in_store: "In-store",
+  phone: "Phone / WhatsApp",
+};
+
+// Return / Refund is offered for delivered or paid orders that still have units to return.
+// Mirrors the checks in process_return().
+export function canReturn(order: { status: OrderStatus; payment_status: PaymentStatus }) {
+  if (order.status === "canceled" || order.status === "returned") return false;
+  return order.status === "delivered" || order.status === "partially_returned" || order.payment_status === "paid";
 }

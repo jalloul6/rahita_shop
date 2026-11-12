@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, MapPin, Package, Palette, ShoppingBag, TicketPercent } from "lucide-react";
+import { LayoutDashboard, MapPin, Package, Palette, PlusCircle, ShoppingBag, TicketPercent } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const ITEMS = [
+const ITEMS: { href: string; label: string; icon: typeof ShoppingBag; exact?: boolean; exclude?: string }[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
+  { href: "/admin/orders/new", label: "New Order", icon: PlusCircle, exact: true },
+  { href: "/admin/orders", label: "Orders", icon: ShoppingBag, exclude: "/admin/orders/new" },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/zones", label: "Shipping Zones", icon: MapPin },
   { href: "/admin/promos", label: "Promo Codes", icon: TicketPercent },
@@ -19,8 +20,8 @@ export function AdminNav() {
 
   return (
     <nav className="flex gap-1 md:flex-col">
-      {ITEMS.map(({ href, label, icon: Icon, exact }) => {
-        const active = exact ? pathname === href : pathname.startsWith(href);
+      {ITEMS.map(({ href, label, icon: Icon, exact, exclude }) => {
+        const active = exact ? pathname === href : pathname.startsWith(href) && pathname !== exclude;
         return (
           <Link
             key={href}

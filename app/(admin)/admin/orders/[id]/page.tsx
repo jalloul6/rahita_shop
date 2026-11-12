@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { ArrowLeft, Printer } from "lucide-react";
 import { PaymentActions } from "@/components/admin/payment-actions";
 import { PaymentBadge } from "@/components/admin/payment-badge";
+import { ReturnPanel } from "@/components/admin/return-panel";
 import { StatusActions } from "@/components/admin/status-actions";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { StatusStepper } from "@/components/admin/status-stepper";
@@ -13,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getOrder } from "@/lib/data/orders";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { PAYMENT_METHOD_LABELS, amountToCollect, orderRef } from "@/lib/orders";
+import { ORDER_SOURCE_LABELS, PAYMENT_METHOD_LABELS, amountToCollect, canReturn, orderRef } from "@/lib/orders";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Order" };
@@ -30,6 +31,7 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
   const { id } = await params;
   const order = await getOrder(id);
   if (!order) notFound();
+  const itemNames = new Map(order.order_items.map((i) => [i.id, i.product_name]));
 
   return (
     <div className="space-y-6">
@@ -41,6 +43,9 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Order {orderRef(order.order_number)}</h1>
           <StatusBadge status={order.status} />
+          {order.order_source !== "online" && (
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{ORDER_SOURCE_LABELS[order.order_source]}</span>
+          )}
         </div>
         <Link
           href={`/admin/orders/${order.id}/receipt`}
@@ -85,6 +90,49 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
           </div>
         </CardContent>
       </Card>
+
+      {(canReturn(order) || order.order_returns.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Returns &amp; refunds</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {order.order_returns.length > 0 && (
+              <ul className="space-y-3">
+                {[...order.order_returns]
+                  .sort((a, b) => a.created_at.localeCompare(b.created_at))
+                  .map((r) => (
+                    <li key={r.id} className="rounded-md border p-3 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-medium">{formatDateTime(r.created_at)}</span>
+                        <span className="font-semibold tabular-nums">Refunded {formatMoney(r.refund_amount)}</span>
+                      </div>
+                      <ul className="mt-1 text-muted-foreground">
+                        {r.order_return_items.map((ri) => (
+                          <li key={ri.order_item_id}>
+                            {ri.quantity} × {itemNames.get(ri.order_item_id) ?? "Item"}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {r.restocked ? "Restocked" : "Not restocked (damaged)"}
+                        {r.reason ? ` · ${r.reason}` : ""}
+                      </div>
+                    </li>
+                  ))}
+              </ul>
+            )}
+            {canReturn(order) && (
+              <ReturnPanel
+                orderId={order.id}
+                items={order.order_items}
+                maxRefund={Math.max(0, order.total_amount - order.refunded_amount)}
+                discountRatio={order.subtotal > 0 ? order.discount_amount / order.subtotal : 0}
+              />
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
@@ -140,7 +188,12 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
               <TableBody>
                 {order.order_items.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell>{item.product_name}</TableCell>
+                    <TableCell>
+                      {item.product_name}
+                      {item.returned_quantity > 0 && (
+                        <div className="text-xs text-rose-700">{item.returned_quantity} returned</div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatMoney(item.unit_price)}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatMoney(item.unit_price * item.quantity)}</TableCell>
@@ -168,6 +221,20 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
                   <TableCell colSpan={3} className="text-right">Order total</TableCell>
                   <TableCell className="text-right tabular-nums">{formatMoney(order.total_amount)}</TableCell>
                 </TableRow>
+                {order.refunded_amount > 0 && (
+                  <>
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-right font-normal text-rose-700">Refunded</TableCell>
+                      <TableCell className="text-right tabular-nums text-rose-700">−{formatMoney(order.refunded_amount)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-right">Net amount</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatMoney(order.total_amount - order.refunded_amount)}
+                      </TableCell>
+                    </TableRow>
+                  </>
+                )}
               </TableFooter>
             </Table>
           </CardContent>

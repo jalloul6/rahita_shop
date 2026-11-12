@@ -15,6 +15,19 @@ export function StatusStepper({ status }: { status: OrderStatus }) {
     );
   }
 
+  // Partially returned orders were delivered first: show the full path plus the return badge.
+  if (status === "partially_returned") {
+    return (
+      <div className="space-y-4">
+        <StatusStepper status="delivered" />
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">After delivery:</span>
+          <StatusBadge status={status} />
+        </div>
+      </div>
+    );
+  }
+
   const current = FLOW.indexOf(status);
 
   return (

@@ -65,3 +65,42 @@ export async function updatePaymentStatus(_prev: StatusState, formData: FormData
   revalidatePath(`/admin/orders/${orderId}`);
   return { success: target === "paid" ? "Marked as paid." : "Marked as unpaid." };
 }
+
+export type ReturnInput = {
+  orderId: string;
+  items: { order_item_id: string; quantity: number }[];
+  restock: boolean;
+  refundAmount: number;
+  reason: string;
+};
+
+// Return / Refund: partial or full. Quantities, refund cap and restocking are enforced in process_return().
+export async function processReturn(input: ReturnInput): Promise<StatusState> {
+  const supabase = await getAdminClient();
+  if (!supabase) return { error: "Not authorized. Please sign in again." };
+
+  const items = (input.items ?? []).filter((i) => Number.isInteger(i.quantity) && i.quantity > 0);
+  if (items.length === 0) return { error: "Choose at least one item to return." };
+  const refund = Math.round((Number(input.refundAmount) || 0) * 100) / 100;
+  if (refund < 0) return { error: "Refund amount cannot be negative." };
+
+  const { error } = await supabase.rpc("process_return", {
+    p_order_id: input.orderId,
+    p_items: items,
+    p_restock: Boolean(input.restock),
+    p_refund_amount: refund,
+    p_reason: input.reason?.trim() || null,
+  });
+  if (error) {
+    return {
+      error: error.message.includes("process_return")
+        ? "Run supabase/migrations/004_manual_orders_returns.sql in Supabase first."
+        : error.message,
+    };
+  }
+
+  if (input.restock) updateTag("products"); // stock went back up
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${input.orderId}`);
+  return { success: "Return recorded." };
+}

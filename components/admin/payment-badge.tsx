@@ -3,11 +3,13 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/orders";
 import { cn } from "@/lib/utils";
 import type { PaymentMethod, PaymentStatus } from "@/types/database";
 
+const SHORT: Record<PaymentMethod, string> = { cod: "COD", whish: "Whish", cash: "Cash" };
+
 export function PaymentBadge({ method, status }: { method: PaymentMethod; status: PaymentStatus }) {
   const paid = status === "paid";
   return (
     <div className="flex flex-col items-start gap-1">
-      <span className="text-xs font-medium">{method === "whish" ? "Whish" : "COD"}</span>
+      <span className="text-xs font-medium">{SHORT[method]}</span>
       <Badge
         variant="outline"
         className={cn(

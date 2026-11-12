@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Download } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { PaymentBadge } from "@/components/admin/payment-badge";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { ORDER_STATUSES, isOrderStatus, orderRef } from "@/lib/orders";
+import { ORDER_SOURCE_LABELS, ORDER_STATUSES, isOrderStatus, orderRef } from "@/lib/orders";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
@@ -23,15 +23,17 @@ export default function OrdersPage(props: PageProps<"/admin/orders">) {
           <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
           <p className="text-sm text-muted-foreground">All customer orders, newest first.</p>
         </div>
-        {/* Plain link: the response is a file download, not a page navigation */}
-        <a
-          href="/admin/api/manifest"
-          download
-          className={cn(buttonVariants({ variant: "default" }))}
-        >
-          <Download className="size-4" />
-          Export Daily Manifest
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/orders/new" className={cn(buttonVariants({ variant: "default" }))}>
+            <Plus className="size-4" />
+            New Order
+          </Link>
+          {/* Plain link: the response is a file download, not a page navigation */}
+          <a href="/admin/api/manifest" download className={cn(buttonVariants({ variant: "outline" }))}>
+            <Download className="size-4" />
+            Export Daily Manifest
+          </a>
+        </div>
       </div>
 
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading orders…</p>}>
@@ -54,7 +56,7 @@ async function OrdersView({
   let query = supabase
     .from("orders")
     .select(
-      "id, order_number, customer_name, phone1, phone2, status, total_amount, payment_method, payment_status, created_at, shipping_zones(zone_name)"
+      "id, order_number, customer_name, phone1, phone2, status, total_amount, refunded_amount, order_source, payment_method, payment_status, created_at, shipping_zones(zone_name)"
     )
     .order("created_at", { ascending: false })
     .limit(PAGE_LIMIT);
@@ -109,7 +111,12 @@ async function OrdersView({
                         {orderRef(o.order_number)}
                       </Link>
                     </TableCell>
-                    <TableCell>{o.customer_name}</TableCell>
+                    <TableCell>
+                      <div>{o.customer_name}</div>
+                      {o.order_source !== "online" && (
+                        <div className="text-xs text-muted-foreground">{ORDER_SOURCE_LABELS[o.order_source]}</div>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div>{o.phone1}</div>
                       {o.phone2 && <div className="text-xs text-muted-foreground">{o.phone2}</div>}
@@ -121,7 +128,12 @@ async function OrdersView({
                     <TableCell>
                       <PaymentBadge method={o.payment_method} status={o.payment_status} />
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{formatMoney(o.total_amount)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatMoney(o.total_amount)}
+                      {o.refunded_amount > 0 && (
+                        <div className="text-xs text-rose-700">−{formatMoney(o.refunded_amount)} refunded</div>
+                      )}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
                       {formatDateTime(o.created_at)}
                     </TableCell>
