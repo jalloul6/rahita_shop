@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getOrder } from "@/lib/data/orders";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { PAYMENT_METHOD_LABELS, amountToCollect } from "@/lib/orders";
+import { PAYMENT_METHOD_LABELS, amountToCollect, orderRef } from "@/lib/orders";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Order" };
@@ -39,7 +39,7 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">Order #{order.order_number}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Order {orderRef(order.order_number)}</h1>
           <StatusBadge status={order.status} />
         </div>
         <Link

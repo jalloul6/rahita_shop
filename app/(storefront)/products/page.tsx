@@ -4,22 +4,26 @@ import type { Metadata } from "next";
 import { buttonVariants } from "@/components/ui/button";
 import { ProductGrid } from "@/components/storefront/product-card";
 import { getCatalog, getStoreCategories } from "@/lib/data/storefront";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
+import { getDictionary } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Shop" };
 
-export default function CatalogPage(props: PageProps<"/products">) {
+export default async function CatalogPage(props: PageProps<"/products">) {
+  const t = await getDictionary();
+
   return (
     <div className="space-y-6">
-      <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">Shop</h1>
-      <Suspense fallback={<p className="text-muted-foreground">Loading products…</p>}>
-        <Catalog searchParams={props.searchParams} />
+      <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">{t.catalog.title}</h1>
+      <Suspense fallback={<p className="text-muted-foreground">{t.home.loadingProducts}</p>}>
+        <Catalog searchParams={props.searchParams} t={t} />
       </Suspense>
     </div>
   );
 }
 
-async function Catalog({ searchParams }: { searchParams: PageProps<"/products">["searchParams"] }) {
+async function Catalog({ searchParams, t }: { searchParams: PageProps<"/products">["searchParams"]; t: Dictionary }) {
   const params = await searchParams;
   const raw = Array.isArray(params.category) ? params.category[0] : params.category;
 
@@ -32,7 +36,7 @@ async function Catalog({ searchParams }: { searchParams: PageProps<"/products">[
     <>
       <div className="flex flex-wrap gap-2">
         <Link href="/products" className={cn(buttonVariants({ variant: category ? "outline" : "default", size: "sm" }), "rounded-full px-4")}>
-          All
+          {t.catalog.all}
         </Link>
         {categories.map((c) => (
           <Link
@@ -45,9 +49,9 @@ async function Catalog({ searchParams }: { searchParams: PageProps<"/products">[
         ))}
       </div>
       {products.length > 0 ? (
-        <ProductGrid products={products} />
+        <ProductGrid products={products} t={t} />
       ) : (
-        <p className="py-12 text-center text-muted-foreground">No products found.</p>
+        <p className="py-12 text-center text-muted-foreground">{t.catalog.noProducts}</p>
       )}
     </>
   );

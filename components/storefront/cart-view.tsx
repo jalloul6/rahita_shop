@@ -6,20 +6,22 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cartSubtotal, useCart } from "@/lib/cart/store";
 import { useIsClient } from "@/lib/cart/use-is-client";
 import { formatMoney } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 export function CartView() {
+  const { t } = useI18n();
   const { items, setQty, remove } = useCart();
   const ready = useIsClient();
 
-  if (!ready) return <p className="text-muted-foreground">Loading your cart…</p>;
+  if (!ready) return <p className="text-muted-foreground">{t.cart.loading}</p>;
 
   if (items.length === 0) {
     return (
       <div className="space-y-4 py-12 text-center">
-        <p className="text-muted-foreground">Your cart is empty.</p>
+        <p className="text-muted-foreground">{t.cart.empty}</p>
         <Link href="/products" className={cn(buttonVariants())}>
-          Browse products
+          {t.cart.browse}
         </Link>
       </div>
     );
@@ -45,19 +47,19 @@ export function CartView() {
                 </Link>
                 <span className="font-semibold tabular-nums">{formatMoney(item.price * item.quantity)}</span>
               </div>
-              <div className="text-sm text-muted-foreground tabular-nums">{formatMoney(item.price)} each</div>
+              <div className="text-sm text-muted-foreground tabular-nums">{t.cart.each(formatMoney(item.price))}</div>
               <div className="mt-auto flex items-center justify-between">
-                <div className="inline-flex items-center rounded-lg border">
-                  <Button variant="ghost" size="icon-sm" aria-label="Decrease quantity" onClick={() => setQty(item.id, item.quantity - 1)} disabled={item.quantity <= 1}>
+                <div className="inline-flex items-center rounded-lg border" dir="ltr">
+                  <Button variant="ghost" size="icon-sm" aria-label={t.product.decrease} onClick={() => setQty(item.id, item.quantity - 1)} disabled={item.quantity <= 1}>
                     <Minus className="size-4" />
                   </Button>
                   <span className="w-8 text-center text-sm tabular-nums">{item.quantity}</span>
-                  <Button variant="ghost" size="icon-sm" aria-label="Increase quantity" onClick={() => setQty(item.id, item.quantity + 1)} disabled={item.quantity >= item.stock}>
+                  <Button variant="ghost" size="icon-sm" aria-label={t.product.increase} onClick={() => setQty(item.id, item.quantity + 1)} disabled={item.quantity >= item.stock}>
                     <Plus className="size-4" />
                   </Button>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => remove(item.id)} aria-label={`Remove ${item.name}`}>
-                  <Trash2 className="size-4" /> Remove
+                <Button variant="ghost" size="sm" onClick={() => remove(item.id)} aria-label={t.cart.removeAria(item.name)}>
+                  <Trash2 className="size-4" /> {t.cart.remove}
                 </Button>
               </div>
             </div>
@@ -66,14 +68,14 @@ export function CartView() {
       </ul>
 
       <aside className="h-fit space-y-4 rounded-2xl border bg-card p-6 shadow-sm lg:sticky lg:top-24">
-        <h2 className="font-semibold">Order summary</h2>
+        <h2 className="font-semibold">{t.cart.summary}</h2>
         <div className="flex justify-between text-sm">
-          <span>Subtotal</span>
+          <span>{t.cart.subtotal}</span>
           <span className="tabular-nums">{formatMoney(cartSubtotal(items))}</span>
         </div>
-        <p className="text-xs text-muted-foreground">Shipping is added at checkout based on your area. Pay cash on delivery.</p>
+        <p className="text-xs text-muted-foreground">{t.cart.shippingNote}</p>
         <Link href="/checkout" className={cn(buttonVariants({ size: "lg" }), "w-full")}>
-          Checkout
+          {t.cart.checkout}
         </Link>
       </aside>
     </div>

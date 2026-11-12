@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { LOW_STOCK } from "@/lib/products";
+import { orderRef } from "@/lib/orders";
 import { SHOP_TIMEZONE } from "@/lib/shop";
 import { createClient } from "@/lib/supabase/server";
 import type { DashboardStats } from "@/types/database";
@@ -185,7 +186,7 @@ async function DashboardContent() {
                     <TableRow key={o.id}>
                       <TableCell>
                         <Link href={`/admin/orders/${o.id}`} className="font-medium hover:underline">
-                          #{o.order_number}
+                          {orderRef(o.order_number)}
                         </Link>
                         <div className="text-xs text-muted-foreground">{o.customer_name}</div>
                         <div className="text-xs text-muted-foreground">{formatDateTime(o.created_at)}</div>

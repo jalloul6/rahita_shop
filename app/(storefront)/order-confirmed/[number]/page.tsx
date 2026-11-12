@@ -7,6 +7,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { ClearCart } from "@/components/storefront/clear-cart";
 import { CopyButton } from "@/components/storefront/copy-button";
 import { CURRENCY, formatMoney } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
+import { isOrderRef } from "@/lib/orders";
 import { SHOP_NAME, WHISH_NUMBER, whatsappLink } from "@/lib/shop";
 import { cn } from "@/lib/utils";
 
@@ -23,68 +25,68 @@ export default function OrderConfirmedPage(props: Props) {
 }
 
 async function Confirmation({ params, searchParams }: { params: Props["params"]; searchParams: Props["searchParams"] }) {
-  const [{ number }, query] = await Promise.all([params, searchParams]);
-  const valid = /^\d{1,12}$/.test(number) && number !== "0";
+  const [{ number }, query, t] = await Promise.all([params, searchParams, getDictionary()]);
+  // The segment carries the customer-facing reference (e.g. RH-1042), never the raw sequence number.
+  const ref = decodeURIComponent(number);
+  const valid = isOrderRef(ref);
 
   // pm / total come from our own redirect after checkout. They only drive what this page shows
   // the customer (and the ad pixel); the real order amount lives in the database.
   const pm = query.pm === "whish" ? "whish" : "cod";
   const totalRaw = typeof query.total === "string" ? query.total : "";
   const total = /^\d{1,7}(\.\d{1,2})?$/.test(totalRaw) ? Number(totalRaw) : null;
-
-  const message =
-    `Hello ${SHOP_NAME}, I placed order #${number}` +
-    (total !== null ? ` with a total of ${formatMoney(total)}` : "") +
-    ` and paid via Whish Money. Here is my payment receipt.`;
+  const totalText = total !== null ? formatMoney(total) : null;
 
   return (
     <div className="mx-auto max-w-lg space-y-5 rounded-3xl border bg-card px-6 py-12 text-center shadow-sm sm:px-10">
       <ClearCart />
-      {valid && total !== null && <PurchaseTracker orderNumber={number} value={total} currency={CURRENCY} />}
+      {valid && total !== null && <PurchaseTracker orderNumber={ref} value={total} currency={CURRENCY} />}
 
       <CheckCircle2 className="mx-auto size-14 text-green-600" />
-      <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">Thank you!</h1>
+      <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">{t.confirm.title}</h1>
       <p className="text-muted-foreground">
         {valid ? (
           <>
-            Your order <span className="font-semibold text-foreground">#{number}</span> has been received.
+            {t.confirm.receivedBefore}{" "}
+            <bdi className="font-semibold text-foreground" dir="ltr">
+              {ref}
+            </bdi>{" "}
+            {t.confirm.receivedAfter}
           </>
         ) : (
-          "Your order has been received."
+          t.confirm.receivedGeneric
         )}{" "}
-        {pm === "cod"
-          ? "We'll call you shortly to confirm it. Please have the cash ready when it arrives."
-          : "We'll ship it as soon as your Whish payment is confirmed."}
+        {pm === "cod" ? t.confirm.codNext : t.confirm.whishNext}
       </p>
 
       {valid && pm === "whish" && (
-        <div className="space-y-4 rounded-xl border-2 border-primary/30 bg-primary/5 p-5 text-left">
+        <div className="space-y-4 rounded-xl border-2 border-primary/30 bg-primary/5 p-5 text-start">
           <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">1. Transfer {total !== null ? formatMoney(total) : "the total"} to</div>
+            <div className="text-sm text-muted-foreground">{t.confirm.step1(totalText)}</div>
             <div className="flex flex-wrap items-center gap-3">
               <span className="font-mono text-2xl font-bold tracking-wider" dir="ltr">
                 {WHISH_NUMBER}
               </span>
-              <CopyButton value={WHISH_NUMBER} label="Copy number" />
+              <CopyButton value={WHISH_NUMBER} />
             </div>
           </div>
           <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">2. Send us the payment receipt</div>
+            <div className="text-sm text-muted-foreground">{t.confirm.step2}</div>
             <a
-              href={whatsappLink(message)}
+              href={whatsappLink(t.confirm.whatsapp(SHOP_NAME, ref, totalText))}
               target="_blank"
               rel="noopener noreferrer"
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-[#1ebe5b]"
             >
               <MessageCircle className="size-5" />
-              Send payment receipt on WhatsApp
+              {t.confirm.sendReceipt}
             </a>
           </div>
         </div>
       )}
 
       <Link href="/products" className={cn(buttonVariants({ size: "lg", variant: pm === "whish" ? "outline" : "default" }))}>
-        Continue shopping
+        {t.confirm.continue}
       </Link>
     </div>
   );

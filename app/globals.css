@@ -235,6 +235,21 @@
   color-scheme: dark;
 }
 
+
+/*
+ * Arabic storefront (set by the storefront layout via data-locale + dir="rtl").
+ * Comes after the themes so it also overrides the Warm theme's Latin-only heading font.
+ * Letter-spacing is removed because it breaks the joins between Arabic letters.
+ */
+[data-locale="ar"] {
+  font-family: var(--font-cairo), var(--font-geist-sans), sans-serif;
+  --heading-font: var(--font-cairo);
+}
+
+[data-locale="ar"] * {
+  letter-spacing: normal;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

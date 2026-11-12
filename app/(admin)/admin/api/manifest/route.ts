@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { toCsv } from "@/lib/csv";
-import { PAYMENT_METHOD_LABELS, amountToCollect } from "@/lib/orders";
+import { PAYMENT_METHOD_LABELS, amountToCollect, orderRef } from "@/lib/orders";
 
 const HEADERS = [
-  "Order #",
+  "Order ref",
   "Customer",
   "Phone 1",
   "Phone 2",
@@ -38,7 +38,7 @@ export async function GET() {
   if (error) return new Response(`Failed to load orders: ${error.message}`, { status: 500 });
 
   const rows = orders.map((o) => [
-    o.order_number,
+    orderRef(o.order_number),
     o.customer_name,
     o.phone1,
     o.phone2,

@@ -3,9 +3,10 @@ import { ImageIcon } from "lucide-react";
 import { QuickAdd } from "@/components/storefront/add-to-cart";
 import type { StoreProduct } from "@/lib/data/storefront";
 import { formatMoney } from "@/lib/format";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { LOW_STOCK } from "@/lib/products";
 
-export function ProductCard({ product }: { product: StoreProduct }) {
+export function ProductCard({ product, t }: { product: StoreProduct; t: Dictionary }) {
   const out = product.stock_quantity < 1;
   const low = !out && product.stock_quantity <= LOW_STOCK;
 
@@ -24,20 +25,20 @@ export function ProductCard({ product }: { product: StoreProduct }) {
           ) : (
             <ImageIcon className="size-10 text-muted-foreground" />
           )}
-          <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+          <div className="absolute start-2 top-2 flex flex-col items-start gap-1">
             {product.is_sponsored && (
               <span className="rounded-full bg-primary px-2.5 py-0.5 text-[0.7rem] font-semibold tracking-wide text-primary-foreground uppercase">
-                Featured
+                {t.product.featuredBadge}
               </span>
             )}
             {out && (
               <span className="rounded-full bg-background/90 px-2.5 py-0.5 text-[0.7rem] font-medium text-foreground backdrop-blur">
-                Out of stock
+                {t.product.outOfStock}
               </span>
             )}
             {low && (
               <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[0.7rem] font-medium text-amber-900">
-                Only {product.stock_quantity} left
+                {t.product.onlyLeft(product.stock_quantity)}
               </span>
             )}
           </div>
@@ -45,7 +46,9 @@ export function ProductCard({ product }: { product: StoreProduct }) {
         <div className="space-y-1 p-3 sm:p-4">
           <div className="text-[0.7rem] font-medium tracking-wider text-muted-foreground uppercase">{product.category}</div>
           <h3 className="line-clamp-2 min-h-[2.5em] text-sm leading-tight font-medium sm:text-base">{product.name}</h3>
-          <div className="pt-0.5 font-semibold tabular-nums text-highlight">{formatMoney(product.price)}</div>
+          <div className="pt-0.5 font-semibold tabular-nums text-highlight">
+            {formatMoney(product.price)}
+          </div>
         </div>
       </Link>
       <div className="mt-auto px-3 pb-3 sm:px-4 sm:pb-4">
@@ -55,11 +58,11 @@ export function ProductCard({ product }: { product: StoreProduct }) {
   );
 }
 
-export function ProductGrid({ products }: { products: StoreProduct[] }) {
+export function ProductGrid({ products, t }: { products: StoreProduct[]; t: Dictionary }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
       {products.map((p) => (
-        <ProductCard key={p.id} product={p} />
+        <ProductCard key={p.id} product={p} t={t} />
       ))}
     </div>
   );

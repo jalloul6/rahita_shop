@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { ORDER_STATUSES, isOrderStatus } from "@/lib/orders";
+import { ORDER_STATUSES, isOrderStatus, orderRef } from "@/lib/orders";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
@@ -84,7 +84,7 @@ async function OrdersView({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order #</TableHead>
+                <TableHead>Order</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Zone</TableHead>
@@ -106,7 +106,7 @@ async function OrdersView({
                   <TableRow key={o.id}>
                     <TableCell className="font-medium">
                       <Link href={`/admin/orders/${o.id}`} className="underline-offset-2 hover:underline">
-                        #{o.order_number}
+                        {orderRef(o.order_number)}
                       </Link>
                     </TableCell>
                     <TableCell>{o.customer_name}</TableCell>

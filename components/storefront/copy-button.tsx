@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/client";
 
-export function CopyButton({ value, label = "Copy" }: { value: string; label?: string }) {
+export function CopyButton({ value, label }: { value: string; label?: string }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -28,7 +30,7 @@ export function CopyButton({ value, label = "Copy" }: { value: string; label?: s
   return (
     <Button type="button" variant="outline" size="sm" onClick={copy} aria-live="polite">
       {copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
-      {copied ? "Copied" : label}
+      {copied ? t.checkout.copied : (label ?? t.checkout.copyNumber)}
     </Button>
   );
 }

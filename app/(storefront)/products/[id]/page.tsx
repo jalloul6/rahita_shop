@@ -5,19 +5,20 @@ import { Banknote, ChevronRight, ImageIcon, Smartphone, Truck } from "lucide-rea
 import { AddToCart } from "@/components/storefront/add-to-cart";
 import { getStoreProduct } from "@/lib/data/storefront";
 import { formatMoney } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
 import { LOW_STOCK } from "@/lib/products";
 import { cn } from "@/lib/utils";
 
 export default function ProductPage(props: PageProps<"/products/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Loading…</p>}>
+    <Suspense fallback={<p className="text-muted-foreground">…</p>}>
       <Product params={props.params} />
     </Suspense>
   );
 }
 
 async function Product({ params }: { params: PageProps<"/products/[id]">["params"] }) {
-  const { id } = await params;
+  const [{ id }, t] = await Promise.all([params, getDictionary()]);
   const product = await getStoreProduct(id);
   if (!product) notFound();
 
@@ -28,13 +29,13 @@ async function Product({ params }: { params: PageProps<"/products/[id]">["params
     <div className="space-y-6">
       <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
         <Link href="/products" className="hover:text-foreground">
-          Shop
+          {t.header.shop}
         </Link>
-        <ChevronRight className="size-4" />
+        <ChevronRight className="size-4 rtl:rotate-180" />
         <Link href={categoryHref} className="hover:text-foreground">
           {product.category}
         </Link>
-        <ChevronRight className="size-4" />
+        <ChevronRight className="size-4 rtl:rotate-180" />
         <span className="truncate text-foreground">{product.name}</span>
       </nav>
 
@@ -57,7 +58,9 @@ async function Product({ params }: { params: PageProps<"/products/[id]">["params
               {product.category}
             </Link>
             <h1 className="font-heading text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">{product.name}</h1>
-            <div className="text-2xl font-semibold tabular-nums sm:text-3xl">{formatMoney(product.price)}</div>
+            <div className="text-2xl font-semibold tabular-nums sm:text-3xl">
+              <bdi>{formatMoney(product.price)}</bdi>
+            </div>
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
@@ -69,7 +72,7 @@ async function Product({ params }: { params: PageProps<"/products/[id]">["params
               )}
             >
               <span className="size-1.5 rounded-full bg-current" />
-              {stock < 1 ? "Out of stock" : stock <= LOW_STOCK ? `Only ${stock} left` : "In stock"}
+              {stock < 1 ? t.product.outOfStock : stock <= LOW_STOCK ? t.product.onlyLeft(stock) : t.product.inStock}
             </span>
           </div>
 
@@ -77,20 +80,20 @@ async function Product({ params }: { params: PageProps<"/products/[id]">["params
 
           {product.description && (
             <div className="space-y-2 border-t pt-6">
-              <h2 className="text-sm font-semibold">Description</h2>
+              <h2 className="text-sm font-semibold">{t.product.description}</h2>
               <p className="leading-relaxed whitespace-pre-wrap text-muted-foreground">{product.description}</p>
             </div>
           )}
 
           <ul className="grid gap-3 rounded-2xl border bg-card p-4 text-sm sm:grid-cols-3">
             <li className="flex items-center gap-2">
-              <Banknote className="size-4 text-highlight" /> Cash on delivery
+              <Banknote className="size-4 text-highlight" /> {t.product.cod}
             </li>
             <li className="flex items-center gap-2">
-              <Smartphone className="size-4 text-highlight" /> Whish Money
+              <Smartphone className="size-4 text-highlight" /> {t.product.whish}
             </li>
             <li className="flex items-center gap-2">
-              <Truck className="size-4 text-highlight" /> Delivery in Lebanon
+              <Truck className="size-4 text-highlight" /> {t.product.delivery}
             </li>
           </ul>
         </div>

@@ -5,7 +5,7 @@ import { PrintButton } from "@/components/admin/print-button";
 import { getOrder } from "@/lib/data/orders";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { SHOP_NAME, SHOP_PHONE, SHOP_TAGLINE } from "@/lib/shop";
-import { PAYMENT_METHOD_LABELS, statusLabel } from "@/lib/orders";
+import { PAYMENT_METHOD_LABELS, orderRef, statusLabel } from "@/lib/orders";
 
 export const metadata: Metadata = { title: "Receipt" };
 
@@ -40,7 +40,7 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
           </div>
           <div className="text-right">
             <div className="text-xs uppercase tracking-wide">Order</div>
-            <div className="text-3xl font-bold tabular-nums">#{order.order_number}</div>
+            <div className="text-3xl font-bold tabular-nums">{orderRef(order.order_number)}</div>
             <div className="text-xs">{formatDateTime(order.created_at)}</div>
           </div>
         </header>

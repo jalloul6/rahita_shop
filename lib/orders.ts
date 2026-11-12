@@ -54,3 +54,17 @@ export function isOrderStatus(value: unknown): value is OrderStatus {
 export function statusLabel(status: OrderStatus) {
   return ORDER_STATUSES.find((s) => s.value === status)?.label ?? status;
 }
+
+// Customer-facing order reference. The sequence number is offset so early orders don't read
+// as "#1"; admin, receipt and manifest use the same format so everyone quotes one reference.
+export const ORDER_REF_PREFIX = "RH-";
+const ORDER_REF_OFFSET = 1000;
+
+export function orderRef(orderNumber: number) {
+  return `${ORDER_REF_PREFIX}${ORDER_REF_OFFSET + orderNumber}`;
+}
+
+// "RH-1042" -> true (format check only; the page never looks the order up)
+export function isOrderRef(value: string) {
+  return /^RH-\d{4,12}$/.test(value);
+}
