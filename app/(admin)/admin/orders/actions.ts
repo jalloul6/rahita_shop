@@ -3,6 +3,7 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { allowedTransitions, isOrderStatus } from "@/lib/orders";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/guard";
 
 export type StatusState = { error?: string; success?: string };
 
@@ -42,4 +43,25 @@ export async function updateOrderStatus(_prev: StatusState, formData: FormData):
   revalidatePath(`/admin/orders/${orderId}`);
   updateTag("products"); // cancel / return restores stock
   return { success: "Status updated." };
+}
+
+export async function updatePaymentStatus(_prev: StatusState, formData: FormData): Promise<StatusState> {
+  const orderId = String(formData.get("orderId") ?? "");
+  const target = formData.get("payment_status");
+  if (!orderId || (target !== "paid" && target !== "pending")) return { error: "Invalid request." };
+
+  const supabase = await getAdminClient();
+  if (!supabase) return { error: "Not authorized. Please sign in again." };
+
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ payment_status: target })
+    .eq("id", orderId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data || data.length === 0) return { error: "Order not found." };
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { success: target === "paid" ? "Marked as paid." : "Marked as unpaid." };
 }

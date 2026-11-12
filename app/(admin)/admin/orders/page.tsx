@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Download } from "lucide-react";
+import { PaymentBadge } from "@/components/admin/payment-badge";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -53,7 +54,7 @@ async function OrdersView({
   let query = supabase
     .from("orders")
     .select(
-      "id, order_number, customer_name, phone1, phone2, status, total_amount, created_at, shipping_zones(zone_name)"
+      "id, order_number, customer_name, phone1, phone2, status, total_amount, payment_method, payment_status, created_at, shipping_zones(zone_name)"
     )
     .order("created_at", { ascending: false })
     .limit(PAGE_LIMIT);
@@ -88,6 +89,7 @@ async function OrdersView({
                 <TableHead>Phone</TableHead>
                 <TableHead>Zone</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Payment</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Date</TableHead>
               </TableRow>
@@ -95,7 +97,7 @@ async function OrdersView({
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                     No orders{status ? " with this status" : " yet"}.
                   </TableCell>
                 </TableRow>
@@ -115,6 +117,9 @@ async function OrdersView({
                     <TableCell>{o.shipping_zones?.zone_name ?? "—"}</TableCell>
                     <TableCell>
                       <StatusBadge status={o.status} />
+                    </TableCell>
+                    <TableCell>
+                      <PaymentBadge method={o.payment_method} status={o.payment_status} />
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{formatMoney(o.total_amount)}</TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">

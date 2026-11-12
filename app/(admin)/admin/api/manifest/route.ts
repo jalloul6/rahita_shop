@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { toCsv } from "@/lib/csv";
+import { PAYMENT_METHOD_LABELS, amountToCollect } from "@/lib/orders";
 
 const HEADERS = [
   "Order #",
@@ -9,7 +10,8 @@ const HEADERS = [
   "Address",
   "Zone",
   "Items",
-  "Amount to collect (COD)",
+  "Payment",
+  "Amount to collect",
   "Notes",
 ];
 
@@ -28,7 +30,7 @@ export async function GET() {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      "order_number, customer_name, phone1, phone2, address, total_amount, notes, shipping_zones(zone_name), order_items(product_name, quantity)"
+      "order_number, customer_name, phone1, phone2, address, total_amount, payment_method, payment_status, notes, shipping_zones(zone_name), order_items(product_name, quantity)"
     )
     .eq("status", "out_for_delivery")
     .order("order_number", { ascending: true });
@@ -43,7 +45,8 @@ export async function GET() {
     o.address,
     o.shipping_zones?.zone_name,
     o.order_items.map((i) => `${i.quantity} x ${i.product_name}`).join("; "),
-    o.total_amount.toFixed(2),
+    `${PAYMENT_METHOD_LABELS[o.payment_method]} (${o.payment_status === "paid" ? "paid" : "unpaid"})`,
+    amountToCollect(o).toFixed(2),
     o.notes,
   ]);
 

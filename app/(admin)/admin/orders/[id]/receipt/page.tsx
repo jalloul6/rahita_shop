@@ -5,7 +5,7 @@ import { PrintButton } from "@/components/admin/print-button";
 import { getOrder } from "@/lib/data/orders";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { SHOP_NAME, SHOP_PHONE, SHOP_TAGLINE } from "@/lib/shop";
-import { statusLabel } from "@/lib/orders";
+import { PAYMENT_METHOD_LABELS, statusLabel } from "@/lib/orders";
 
 export const metadata: Metadata = { title: "Receipt" };
 
@@ -84,6 +84,12 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
               <dt>Subtotal</dt>
               <dd className="tabular-nums">{formatMoney(order.subtotal)}</dd>
             </div>
+            {order.discount_amount > 0 && (
+              <div className="flex justify-between">
+                <dt>Discount{order.promo_code ? ` (${order.promo_code})` : ""}</dt>
+                <dd className="tabular-nums">−{formatMoney(order.discount_amount)}</dd>
+              </div>
+            )}
             <div className="flex justify-between">
               <dt>Shipping</dt>
               <dd className="tabular-nums">{formatMoney(order.shipping_fee)}</dd>
@@ -92,8 +98,21 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
         </section>
 
         <section className="rounded border-2 border-black p-3 text-center">
-          <div className="text-xs font-semibold uppercase tracking-wide">Cash on delivery: collect</div>
-          <div className="text-4xl font-extrabold tabular-nums">{formatMoney(order.total_amount)}</div>
+          {order.payment_status === "paid" ? (
+            <>
+              <div className="text-xs font-semibold uppercase tracking-wide">
+                Paid via {PAYMENT_METHOD_LABELS[order.payment_method]}: collect
+              </div>
+              <div className="text-4xl font-extrabold tabular-nums">{formatMoney(0)}</div>
+            </>
+          ) : (
+            <>
+              <div className="text-xs font-semibold uppercase tracking-wide">
+                {order.payment_method === "whish" ? "Whish payment NOT confirmed: collect" : "Cash on delivery: collect"}
+              </div>
+              <div className="text-4xl font-extrabold tabular-nums">{formatMoney(order.total_amount)}</div>
+            </>
+          )}
         </section>
 
         {order.notes && (

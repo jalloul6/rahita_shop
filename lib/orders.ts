@@ -1,4 +1,14 @@
-import type { OrderStatus } from "@/types/database";
+import type { OrderStatus, PaymentMethod } from "@/types/database";
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cod: "Cash on Delivery",
+  whish: "Whish Money",
+};
+
+// What the courier must collect: nothing if already paid (e.g. Whish transfer confirmed).
+export function amountToCollect(order: { total_amount: number; payment_status: string }) {
+  return order.payment_status === "paid" ? 0 : order.total_amount;
+}
 
 export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
   { value: "pending", label: "Pending" },

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, MapPin, Package, ShoppingBag } from "lucide-react";
+import { LayoutDashboard, MapPin, Package, ShoppingBag, TicketPercent } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
@@ -10,6 +10,7 @@ const ITEMS = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/zones", label: "Shipping Zones", icon: MapPin },
+  { href: "/admin/promos", label: "Promo Codes", icon: TicketPercent },
 ];
 
 export function AdminNav() {

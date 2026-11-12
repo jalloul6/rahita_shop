@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Trophy } from "lucide-react";
+import { PaymentBadge } from "@/components/admin/payment-badge";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,7 @@ import { formatDateTime, formatMoney } from "@/lib/format";
 import { LOW_STOCK } from "@/lib/products";
 import { SHOP_TIMEZONE } from "@/lib/shop";
 import { createClient } from "@/lib/supabase/server";
-import type { OrderStatus } from "@/types/database";
+import type { DashboardStats } from "@/types/database";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -19,7 +20,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">What needs attention today.</p>
+        <p className="text-sm text-muted-foreground">Sales overview and what needs attention today.</p>
       </div>
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading dashboard…</p>}>
         <DashboardContent />
@@ -28,27 +29,11 @@ export default function DashboardPage() {
   );
 }
 
-const dayKey = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: SHOP_TIMEZONE }).format(d); // YYYY-MM-DD
-
 async function DashboardContent() {
   const supabase = await createClient();
-  const now = new Date();
-  // Look back 48h so "today" is covered in any timezone, then bucket by shop-local date.
-  const since = new Date(now.getTime() - 48 * 3600 * 1000).toISOString();
 
-  const countOf = (status: OrderStatus) =>
-    supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", status);
-
-  const [pending, processing, outForDelivery, recent48h, lowStock, latest] = await Promise.all([
-    countOf("pending"),
-    countOf("processing"),
-    countOf("out_for_delivery"),
-    supabase
-      .from("orders")
-      .select("status, total_amount, created_at")
-      .gte("created_at", since)
-      .order("created_at", { ascending: false })
-      .limit(1000),
+  const [stats, lowStock, latest] = await Promise.all([
+    supabase.rpc("admin_dashboard_stats", { p_tz: SHOP_TIMEZONE }),
     supabase
       .from("products")
       .select("id, name, stock_quantity")
@@ -59,40 +44,89 @@ async function DashboardContent() {
       .limit(20),
     supabase
       .from("orders")
-      .select("id, order_number, customer_name, status, total_amount, created_at")
+      .select("id, order_number, customer_name, status, payment_method, payment_status, total_amount, created_at")
       .order("created_at", { ascending: false })
       .limit(5),
   ]);
 
-  const error = [pending, processing, outForDelivery, recent48h, lowStock, latest].find((r) => r.error)?.error;
-  if (error) {
+  const error = stats.error ?? lowStock.error ?? latest.error;
+  if (error || !stats.data) {
     return (
       <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-        Could not load dashboard: {error.message}
+        Could not load dashboard: {error?.message ?? "no data"}. If this mentions admin_dashboard_stats, run
+        supabase/migrations/002_payments_promos_analytics.sql in the Supabase SQL editor.
       </p>
     );
   }
 
-  const today = dayKey(now);
-  const todays = (recent48h.data ?? []).filter((o) => dayKey(new Date(o.created_at)) === today);
-  const todaysValue = todays
-    .filter((o) => o.status !== "canceled" && o.status !== "returned")
-    .reduce((sum, o) => sum + o.total_amount, 0);
-
+  const { kpis, top_products } = stats.data as DashboardStats;
   const products = lowStock.data ?? [];
-  const outOfStock = products.filter((p) => p.stock_quantity === 0);
-  const low = products.filter((p) => p.stock_quantity > 0);
+  const inProgress = kpis.pending + kpis.processing;
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Orders today" value={String(todays.length)} hint={`${formatMoney(todaysValue)} excluding canceled`} />
-        <Stat label="Pending" value={String(pending.count ?? 0)} hint="Waiting to be confirmed" href="/admin/orders?status=pending" />
-        <Stat label="Processing" value={String(processing.count ?? 0)} hint="Being prepared" href="/admin/orders?status=processing" />
-        <Stat label="Out for delivery" value={String(outForDelivery.count ?? 0)} hint="With the courier" href="/admin/orders?status=out_for_delivery" />
+        <Stat label="Total sales" value={formatMoney(kpis.total_sales)} hint="Delivered or paid orders" />
+        <Stat
+          label="Today"
+          value={formatMoney(kpis.today_sales)}
+          hint={`${kpis.today_orders} order${kpis.today_orders === 1 ? "" : "s"} placed, excl. canceled`}
+        />
+        <Stat
+          label="This month"
+          value={formatMoney(kpis.month_sales)}
+          hint={`${kpis.month_orders} order${kpis.month_orders === 1 ? "" : "s"}, excl. canceled`}
+        />
+        <Stat
+          label="In progress"
+          value={String(inProgress)}
+          hint={`${kpis.pending} pending · ${kpis.processing} processing`}
+          href="/admin/orders?status=pending"
+        />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Stat
+          label="Out for delivery"
+          value={String(kpis.out_for_delivery)}
+          hint="With the courier"
+          href="/admin/orders?status=out_for_delivery"
+        />
+        <Stat label="Whish payments to confirm" value={String(kpis.unpaid_whish)} hint="Whish orders still marked unpaid" />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="size-4 text-amber-500" />
+              Top products
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {top_products.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No sales yet.</p>
+            ) : (
+              <ol className="space-y-3">
+                {top_products.map((p, i) => (
+                  <li key={p.product_id} className="flex items-center gap-3 text-sm">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted font-semibold">
+                      {i + 1}
+                    </span>
+                    <Link href={`/admin/products/${p.product_id}/edit`} className="min-w-0 flex-1 truncate font-medium hover:underline">
+                      {p.name}
+                    </Link>
+                    <span className="shrink-0 text-right tabular-nums">
+                      {p.quantity} sold
+                      <span className="block text-xs text-muted-foreground">{formatMoney(Number(p.revenue))}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -105,7 +139,7 @@ async function DashboardContent() {
               <p className="text-sm text-muted-foreground">All products have more than {LOW_STOCK} in stock.</p>
             ) : (
               <ul className="divide-y">
-                {[...outOfStock, ...low].map((p) => (
+                {products.map((p) => (
                   <li key={p.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                     <Link href={`/admin/products/${p.id}/edit`} className="min-w-0 truncate font-medium hover:underline">
                       {p.name}
@@ -123,7 +157,6 @@ async function DashboardContent() {
                 ))}
               </ul>
             )}
-            {products.length === 20 && <p className="mt-2 text-xs text-muted-foreground">Showing the 20 lowest.</p>}
           </CardContent>
         </Card>
 
@@ -136,7 +169,6 @@ async function DashboardContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order</TableHead>
-                  <TableHead>Customer</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                 </TableRow>
@@ -144,7 +176,7 @@ async function DashboardContent() {
               <TableBody>
                 {(latest.data ?? []).length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-16 text-center text-muted-foreground">
+                    <TableCell colSpan={3} className="h-16 text-center text-muted-foreground">
                       No orders yet.
                     </TableCell>
                   </TableRow>
@@ -155,11 +187,12 @@ async function DashboardContent() {
                         <Link href={`/admin/orders/${o.id}`} className="font-medium hover:underline">
                           #{o.order_number}
                         </Link>
+                        <div className="text-xs text-muted-foreground">{o.customer_name}</div>
                         <div className="text-xs text-muted-foreground">{formatDateTime(o.created_at)}</div>
                       </TableCell>
-                      <TableCell>{o.customer_name}</TableCell>
-                      <TableCell>
+                      <TableCell className="space-y-1">
                         <StatusBadge status={o.status} />
+                        <PaymentBadge method={o.payment_method} status={o.payment_status} />
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{formatMoney(o.total_amount)}</TableCell>
                     </TableRow>
@@ -179,7 +212,7 @@ async function DashboardContent() {
 
 function Stat({ label, value, hint, href }: { label: string; value: string; hint: string; href?: string }) {
   const body = (
-    <Card className={href ? "transition-colors hover:bg-muted/50" : undefined}>
+    <Card className={href ? "h-full transition-colors hover:bg-muted/50" : "h-full"}>
       <CardContent className="space-y-1">
         <div className="text-sm text-muted-foreground">{label}</div>
         <div className="text-3xl font-semibold tabular-nums">{value}</div>

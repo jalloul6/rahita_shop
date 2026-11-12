@@ -24,6 +24,23 @@ export const zoneSchema = z.object({
   is_active: z.boolean(),
 });
 
+export const promoSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .transform((v) => v.toUpperCase())
+      .pipe(z.string().regex(/^[A-Z0-9_-]{3,30}$/, "Use 3–30 letters, numbers, - or _")),
+    discount_type: z.enum(["percentage", "fixed"], { error: "Choose a discount type" }),
+    discount_value: number("Discount value", { max: 100_000 }).transform((n) => Math.round(n * 100) / 100),
+    is_active: z.boolean(),
+  })
+  .refine((p) => p.discount_value > 0, { message: "Discount value must be greater than 0", path: ["discount_value"] })
+  .refine((p) => p.discount_type !== "percentage" || p.discount_value <= 100, {
+    message: "A percentage discount can't exceed 100",
+    path: ["discount_value"],
+  });
+
 export const productSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   description: z

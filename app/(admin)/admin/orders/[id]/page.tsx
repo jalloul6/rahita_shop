@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft, Printer } from "lucide-react";
+import { PaymentActions } from "@/components/admin/payment-actions";
+import { PaymentBadge } from "@/components/admin/payment-badge";
 import { StatusActions } from "@/components/admin/status-actions";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { StatusStepper } from "@/components/admin/status-stepper";
@@ -11,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getOrder } from "@/lib/data/orders";
 import { formatDateTime, formatMoney } from "@/lib/format";
+import { PAYMENT_METHOD_LABELS, amountToCollect } from "@/lib/orders";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Order" };
@@ -57,6 +60,29 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
         <CardContent className="space-y-6">
           <StatusStepper status={order.status} />
           <StatusActions orderId={order.id} status={order.status} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1 text-sm">
+            <div className="font-medium">{PAYMENT_METHOD_LABELS[order.payment_method]}</div>
+            <div className="text-muted-foreground">
+              {order.payment_status === "paid"
+                ? "Paid. The courier collects nothing."
+                : order.payment_method === "whish"
+                  ? "Waiting for the Whish transfer receipt on WhatsApp."
+                  : "Courier collects cash on delivery (marked paid automatically when delivered)."}
+            </div>
+            <div className="pt-1 font-semibold tabular-nums">To collect: {formatMoney(amountToCollect(order))}</div>
+          </div>
+          <div className="flex items-start gap-4">
+            <PaymentBadge method={order.payment_method} status={order.payment_status} />
+            <PaymentActions orderId={order.id} status={order.payment_status} />
+          </div>
         </CardContent>
       </Card>
 
@@ -126,12 +152,20 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
                   <TableCell colSpan={3} className="text-right font-normal">Subtotal</TableCell>
                   <TableCell className="text-right tabular-nums">{formatMoney(order.subtotal)}</TableCell>
                 </TableRow>
+                {order.discount_amount > 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-right font-normal">
+                      Discount{order.promo_code ? ` (${order.promo_code})` : ""}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">−{formatMoney(order.discount_amount)}</TableCell>
+                  </TableRow>
+                )}
                 <TableRow>
                   <TableCell colSpan={3} className="text-right font-normal">Shipping</TableCell>
                   <TableCell className="text-right tabular-nums">{formatMoney(order.shipping_fee)}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell colSpan={3} className="text-right">Total to collect (COD)</TableCell>
+                  <TableCell colSpan={3} className="text-right">Order total</TableCell>
                   <TableCell className="text-right tabular-nums">{formatMoney(order.total_amount)}</TableCell>
                 </TableRow>
               </TableFooter>
