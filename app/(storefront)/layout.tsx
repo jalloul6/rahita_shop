@@ -3,11 +3,14 @@ import Link from "next/link";
 import { Banknote, Smartphone, Truck } from "lucide-react";
 import { CartLink } from "@/components/storefront/cart-link";
 import { LanguageSwitcher } from "@/components/storefront/language-switcher";
+import { ThemeToggle } from "@/components/storefront/theme-toggle";
 import { getShopTheme } from "@/lib/data/storefront";
 import { I18nProvider } from "@/lib/i18n/client";
 import { dictionaries, dirOf } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/server";
+import { getColorMode } from "@/lib/preferences";
 import { SHOP_NAME, SHOP_PHONE } from "@/lib/shop";
+import { resolveTheme } from "@/lib/themes";
 
 // The language comes from a cookie (request-time data), so the whole storefront renders inside
 // this Suspense boundary. Catalog data stays cached through "use cache" in lib/data/storefront.
@@ -19,15 +22,19 @@ export default function StorefrontLayout({ children }: LayoutProps<"/">) {
   );
 }
 
-// Theme (from /admin/appearance) is applied via data-theme; language via lang/dir/data-locale.
+// Theme (from /admin/appearance, or the visitor's dark/light toggle) is applied via data-theme;
+// language via lang/dir/data-locale.
 // Both only affect the storefront: /admin keeps its own neutral, English, LTR layout.
 async function StoreShell({ children }: { children: React.ReactNode }) {
-  const [theme, locale] = await Promise.all([getShopTheme(), getLocale()]);
+  const [shopTheme, locale, mode] = await Promise.all([getShopTheme(), getLocale(), getColorMode()]);
+  // Visitor light/dark choice (header toggle) overrides the shop theme for this visitor only.
+  const theme = resolveTheme(shopTheme, mode);
   const t = dictionaries[locale];
 
   return (
     <I18nProvider locale={locale}>
       <div
+        data-store-root=""
         data-theme={theme}
         data-locale={locale}
         lang={locale}
@@ -62,6 +69,7 @@ async function StoreShell({ children }: { children: React.ReactNode }) {
                 {t.header.shop}
               </Link>
               <CartLink />
+              <ThemeToggle key={theme} shopTheme={shopTheme} activeTheme={theme} />
               <LanguageSwitcher />
             </nav>
           </div>

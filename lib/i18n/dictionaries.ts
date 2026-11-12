@@ -25,6 +25,8 @@ const en = {
     cartAria: (n: number) => `Cart, ${n} items`,
     switchLabel: "العربية",
     switchAria: "Switch language to Arabic",
+    darkMode: "Switch to dark mode",
+    lightMode: "Switch to light mode",
   },
   footer: {
     blurb: "Hand-picked scents and gifts, delivered to your door.",
@@ -177,6 +179,8 @@ const ar: Dictionary = {
     cartAria: (n) => `السلة، ${n} منتجات`,
     switchLabel: "English",
     switchAria: "تغيير اللغة إلى الإنجليزية",
+    darkMode: "التبديل إلى الوضع الداكن",
+    lightMode: "التبديل إلى الوضع الفاتح",
   },
   footer: {
     blurb: "عطور وهدايا مختارة بعناية، تصلك حتى باب منزلك.",
