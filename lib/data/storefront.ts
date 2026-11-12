@@ -1,6 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
+import { DEFAULT_THEME, isThemeId, type ThemeId } from "@/lib/themes";
 
 // Public, cached catalog reads. Tags are invalidated by admin actions (updateTag).
 // On a failed read we return an empty result with a very short lifetime so a transient
@@ -134,5 +135,22 @@ export async function getCheckoutZones(): Promise<{ id: string; zone_name: strin
     console.error("getCheckoutZones failed", e);
     cacheLife("seconds");
     return [];
+  }
+}
+
+// Storefront theme chosen in /admin/appearance. Falls back to the default theme if the
+// settings table is missing or unreachable (cached briefly so the store never breaks).
+export async function getShopTheme(): Promise<ThemeId> {
+  "use cache";
+  cacheTag("settings");
+  try {
+    const { data, error } = await createPublicClient().from("shop_settings").select("theme").eq("id", 1).maybeSingle();
+    if (error) throw error;
+    cacheLife("hours");
+    return isThemeId(data?.theme) ? data.theme : DEFAULT_THEME;
+  } catch (e) {
+    console.error("getShopTheme failed", e);
+    cacheLife("minutes");
+    return DEFAULT_THEME;
   }
 }

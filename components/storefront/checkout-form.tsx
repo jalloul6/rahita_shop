@@ -78,7 +78,7 @@ export function CheckoutForm({ zones }: { zones: Zone[] }) {
         </label>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-5 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
         {state.error && (
           <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {state.error}
@@ -167,7 +167,7 @@ export function CheckoutForm({ zones }: { zones: Zone[] }) {
         </fieldset>
       </div>
 
-      <aside className="h-fit space-y-4 rounded-xl border bg-card p-5">
+      <aside className="h-fit space-y-4 rounded-2xl border bg-card p-6 shadow-sm lg:sticky lg:top-24">
         <h2 className="font-semibold">Your order</h2>
         <ul className="space-y-1 text-sm">
           {items.map((i) => (

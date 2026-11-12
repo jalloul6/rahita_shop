@@ -27,7 +27,7 @@ export function CartView() {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
-      <ul className="divide-y rounded-xl border bg-card">
+      <ul className="divide-y rounded-2xl border bg-card shadow-sm">
         {items.map((item) => (
           <li key={item.id} className="flex gap-4 p-4">
             <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
@@ -65,7 +65,7 @@ export function CartView() {
         ))}
       </ul>
 
-      <aside className="h-fit space-y-4 rounded-xl border bg-card p-5">
+      <aside className="h-fit space-y-4 rounded-2xl border bg-card p-6 shadow-sm lg:sticky lg:top-24">
         <h2 className="font-semibold">Order summary</h2>
         <div className="flex justify-between text-sm">
           <span>Subtotal</span>

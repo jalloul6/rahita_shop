@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Checkout" };
 export default function CheckoutPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Checkout</h1>
+      <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">Checkout</h1>
       <Suspense fallback={<p className="text-muted-foreground">Loading…</p>}>
         <Checkout />
       </Suspense>

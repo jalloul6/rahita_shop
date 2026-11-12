@@ -149,6 +149,12 @@ export type Database = {
           },
         ];
       };
+      shop_settings: {
+        Row: { id: number; theme: string; updated_at: string };
+        Insert: { id?: number; theme?: string; updated_at?: string };
+        Update: { theme?: string; updated_at?: string };
+        Relationships: [];
+      };
       promo_codes: {
         Row: PromoCode;
         Insert: Partial<PromoCode> & Pick<PromoCode, "code" | "discount_type" | "discount_value">;

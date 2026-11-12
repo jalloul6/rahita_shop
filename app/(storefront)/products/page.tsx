@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Shop" };
 export default function CatalogPage(props: PageProps<"/products">) {
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Shop</h1>
+      <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">Shop</h1>
       <Suspense fallback={<p className="text-muted-foreground">Loading products…</p>}>
         <Catalog searchParams={props.searchParams} />
       </Suspense>
@@ -31,14 +31,14 @@ async function Catalog({ searchParams }: { searchParams: PageProps<"/products">[
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        <Link href="/products" className={cn(buttonVariants({ variant: category ? "outline" : "default", size: "sm" }))}>
+        <Link href="/products" className={cn(buttonVariants({ variant: category ? "outline" : "default", size: "sm" }), "rounded-full px-4")}>
           All
         </Link>
         {categories.map((c) => (
           <Link
             key={c}
             href={`/products?category=${encodeURIComponent(c)}`}
-            className={cn(buttonVariants({ variant: category === c ? "default" : "outline", size: "sm" }))}
+            className={cn(buttonVariants({ variant: category === c ? "default" : "outline", size: "sm" }), "rounded-full px-4")}
           >
             {c}
           </Link>
