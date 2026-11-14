@@ -2,8 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* `dark:` utilities also apply inside the Midnight storefront theme */
-@custom-variant dark (&:where(.dark, .dark *, [data-theme="midnight"], [data-theme="midnight"] *));
+/* `dark:` utilities also apply inside the Midnight storefront theme and the dark admin themes */
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="midnight"], [data-theme="midnight"] *, [data-admin-theme="shopify"], [data-admin-theme="shopify"] *, [data-admin-theme="gold"], [data-admin-theme="gold"] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -235,6 +235,66 @@
   color-scheme: dark;
 }
 
+
+/*
+ * Admin dashboard themes. Applied by the admin layout via <div data-admin-theme="...">.
+ * "clean" uses the neutral :root tokens; the two dark themes redefine every token and turn on
+ * `dark:` utilities (see the custom variant above) so badges and alerts switch to dark styles.
+ */
+
+[data-admin-theme="shopify"] {
+  --background: oklch(0.215 0 0);
+  --foreground: oklch(0.96 0 0);
+  --card: oklch(0.27 0 0);
+  --card-foreground: oklch(0.96 0 0);
+  --popover: oklch(0.29 0 0);
+  --popover-foreground: oklch(0.96 0 0);
+  --primary: oklch(0.72 0.16 152);
+  --primary-foreground: oklch(0.17 0.02 152);
+  --secondary: oklch(0.31 0 0);
+  --secondary-foreground: oklch(0.96 0 0);
+  --muted: oklch(0.305 0 0);
+  --muted-foreground: oklch(0.78 0 0);
+  --accent: oklch(0.33 0 0);
+  --accent-foreground: oklch(0.97 0 0);
+  --destructive: oklch(0.7 0.19 22);
+  --border: oklch(1 0 0 / 13%);
+  --input: oklch(1 0 0 / 18%);
+  --ring: oklch(0.72 0.16 152);
+  color-scheme: dark;
+}
+
+[data-admin-theme="gold"] {
+  --background: oklch(0.19 0.01 70);
+  --foreground: oklch(0.95 0.012 85);
+  --card: oklch(0.235 0.014 70);
+  --card-foreground: oklch(0.95 0.012 85);
+  --popover: oklch(0.26 0.016 70);
+  --popover-foreground: oklch(0.95 0.012 85);
+  --primary: oklch(0.8 0.12 82);
+  --primary-foreground: oklch(0.18 0.02 70);
+  --secondary: oklch(0.285 0.018 70);
+  --secondary-foreground: oklch(0.95 0.012 85);
+  --muted: oklch(0.275 0.016 70);
+  --muted-foreground: oklch(0.77 0.03 82);
+  --accent: oklch(0.31 0.03 78);
+  --accent-foreground: oklch(0.96 0.012 85);
+  --destructive: oklch(0.7 0.19 22);
+  --border: oklch(0.85 0.07 82 / 16%);
+  --input: oklch(0.85 0.07 82 / 22%);
+  --ring: oklch(0.8 0.12 82);
+  color-scheme: dark;
+}
+
+/* Page background behind the admin shell (overscroll, short pages) follows the admin theme. */
+html:has([data-admin-theme="shopify"]) {
+  background-color: oklch(0.215 0 0);
+  color-scheme: dark;
+}
+html:has([data-admin-theme="gold"]) {
+  background-color: oklch(0.19 0.01 70);
+  color-scheme: dark;
+}
 
 /*
  * Arabic storefront (set by the storefront layout via data-locale + dir="rtl").

@@ -78,9 +78,9 @@ async function DashboardContent({ t }: { t: AdminDict }) {
   return (
     <>
       {products.length > 0 && (
-        <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950">
+        <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
           <div className="flex items-center gap-2 font-semibold">
-            <AlertTriangle className="size-5 text-amber-600" />
+            <AlertTriangle className="size-5 text-amber-600 dark:text-amber-400" />
             {d.lowStockBanner(products.length, ALERT_STOCK)}
           </div>
           <ul className="mt-3 flex flex-wrap gap-2">
@@ -88,10 +88,10 @@ async function DashboardContent({ t }: { t: AdminDict }) {
               <li key={p.id}>
                 <Link
                   href={`/admin/products/${p.id}/edit`}
-                  className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-white px-3 py-1 text-sm hover:border-amber-500"
+                  className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-white px-3 py-1 text-sm hover:border-amber-500 dark:border-amber-500/40 dark:bg-card dark:hover:border-amber-400"
                 >
                   <span className="font-medium">{p.name}</span>
-                  <span className={p.stock_quantity === 0 ? "font-semibold text-red-700" : "font-semibold text-amber-700"}>
+                  <span className={p.stock_quantity === 0 ? "font-semibold text-red-700 dark:text-red-400" : "font-semibold text-amber-700 dark:text-amber-300"}>
                     {p.stock_quantity === 0 ? d.out : d.left(p.stock_quantity)}
                   </span>
                   <span className="text-xs text-muted-foreground underline">{d.restock}</span>

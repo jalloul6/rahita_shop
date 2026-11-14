@@ -72,10 +72,18 @@ async function StoreShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4">
             <Link href="/" className="group flex min-w-0 flex-col leading-none">
-              <span className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">{brand.name}</span>
-              <span className="hidden text-[0.7rem] tracking-[0.2em] text-muted-foreground uppercase sm:block">
-                {brand.tagline}
-              </span>
+              {settings.logoUrl ? (
+                // Logo replaces the text name; the name stays as alt text for screen readers.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={settings.logoUrl} alt={brand.name} className="h-10 w-auto max-w-[9rem] object-contain sm:h-11 sm:max-w-[12rem]" />
+              ) : (
+                <>
+                  <span className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">{brand.name}</span>
+                  <span className="hidden text-[0.7rem] tracking-[0.2em] text-muted-foreground uppercase sm:block">
+                    {brand.tagline}
+                  </span>
+                </>
+              )}
             </Link>
             <nav className="flex items-center gap-0.5 text-sm font-medium sm:gap-1">
               <Link
@@ -111,7 +119,12 @@ async function StoreShell({ children }: { children: React.ReactNode }) {
         <footer className="mt-12 border-t bg-muted/40">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
             <div className="space-y-2">
-              <div className="font-heading text-lg font-semibold">{brand.name}</div>
+              {settings.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={settings.logoUrl} alt={brand.name} className="h-12 w-auto max-w-[12rem] object-contain" />
+              ) : (
+                <div className="font-heading text-lg font-semibold">{brand.name}</div>
+              )}
               <p className="text-sm text-muted-foreground">{t.footer.blurb}</p>
               {SHOP_PHONE && (
                 <p className="text-sm text-muted-foreground" dir="ltr">

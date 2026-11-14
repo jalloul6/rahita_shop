@@ -149,7 +149,7 @@ async function Customer({ params }: { params: Props["params"] }) {
                   </TableCell>
                   <TableCell className="text-end tabular-nums">
                     {formatMoney(o.total_amount)}
-                    {o.refunded_amount > 0 && <div className="text-xs text-rose-700">{t.common.refundedSuffix(formatMoney(o.refunded_amount))}</div>}
+                    {o.refunded_amount > 0 && <div className="text-xs text-rose-700 dark:text-rose-400">{t.common.refundedSuffix(formatMoney(o.refunded_amount))}</div>}
                   </TableCell>
                 </TableRow>
               ))}

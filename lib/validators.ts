@@ -60,6 +60,11 @@ export const settingsSchema = z.object({
   store_name_ar: optionalText(60),
   tagline_en: optionalText(80),
   tagline_ar: optionalText(80),
+  logo_url: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || v.startsWith(IMAGE_URL_PREFIX), "Invalid image")
+    .transform((v) => v || null),
   whatsapp_number: optionalPhone,
   whish_number: optionalPhone,
   instagram_url: z

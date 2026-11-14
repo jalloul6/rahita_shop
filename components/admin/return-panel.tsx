@@ -94,7 +94,7 @@ export function ReturnPanel({
           <RotateCcw className="size-4" />
           {r.button}
         </Button>
-        {message.success && <p className="text-sm text-green-700">{message.success}</p>}
+        {message.success && <p className="text-sm text-green-700 dark:text-green-400">{message.success}</p>}
       </div>
     );
   }

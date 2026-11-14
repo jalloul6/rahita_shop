@@ -12,6 +12,7 @@ export type StoreSettings = {
   theme: ThemeId;
   storeName: Pair;
   tagline: Pair;
+  logoUrl: string | null;
   whatsappNumber: string; // digits only, international format
   whishNumber: string;
   instagramUrl: string | null;
@@ -27,6 +28,7 @@ export function resolveSettings(row: Partial<ShopSettings> | null): StoreSetting
     theme: isThemeId(row?.theme) ? row.theme : DEFAULT_THEME,
     storeName: { en: clean(row?.store_name_en), ar: clean(row?.store_name_ar) },
     tagline: { en: clean(row?.tagline_en), ar: clean(row?.tagline_ar) },
+    logoUrl: clean(row?.logo_url),
     whatsappNumber: toWhatsAppDigits(clean(row?.whatsapp_number) ?? WHATSAPP_NUMBER),
     whishNumber: clean(row?.whish_number) ?? WHISH_NUMBER,
     instagramUrl: clean(row?.instagram_url),

@@ -21,28 +21,28 @@ export function SettingsForm({ initial }: { initial: Values }) {
   const s = t.settings;
   const [state, action, pending] = useActionState<SettingsState, FormData>(saveSettings, {});
   const [heroImage, setHeroImage] = useState(initial.hero_image_url ?? "");
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
+  const [logo, setLogo] = useState(initial.logo_url ?? "");
+  const [uploading, setUploading] = useState(0); // number of uploads in progress
   const err = (f: string) => translateValidation(state.fieldErrors?.[f]?.[0], t);
   const val = (k: keyof ShopSettings) => (typeof initial[k] === "string" ? (initial[k] as string) : "");
-
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setUploadError("");
-    setUploading(true);
-    const result = await uploadImage(file, "hero", { type: t.msg.imageType, size: t.msg.imageSize });
-    setUploading(false);
-    if (result.error) setUploadError(result.error);
-    else if (result.url) setHeroImage(result.url);
-  }
 
   return (
     <form action={action} className="space-y-8">
       <input type="hidden" name="hero_image_url" value={heroImage} />
+      <input type="hidden" name="logo_url" value={logo} />
 
       <Section title={s.branding} hint={s.brandingHint}>
+        <ImagePicker
+          label={s.logo}
+          hint={s.logoHint}
+          folder="logo"
+          value={logo}
+          onChange={setLogo}
+          onBusy={(d) => setUploading((n) => n + d)}
+          error={err("logo_url")}
+          previewClass="h-20 w-48 bg-[repeating-conic-gradient(var(--muted)_0_25%,transparent_0_50%)] bg-[length:16px_16px] p-2"
+          fit="object-contain"
+        />
         <Bilingual label={s.storeName} name="store_name" initial={initial} err={err} placeholder={{ en: "Rahita", ar: "رحيتا" }} />
         <Bilingual label={s.tagline} name="tagline" initial={initial} err={err} placeholder={{ en: "Perfumes & Gifts", ar: "عطور وهدايا" }} />
       </Section>
@@ -88,33 +88,17 @@ export function SettingsForm({ initial }: { initial: Values }) {
       </Section>
 
       <Section title={s.hero} hint={s.heroHint}>
-        <div className="space-y-2">
-          <Label>{s.cover}</Label>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex h-28 w-48 items-center justify-center overflow-hidden rounded-lg border bg-muted">
-              {heroImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={heroImage} alt="" className="size-full object-cover" />
-              ) : (
-                <ImagePlus className="size-6 text-muted-foreground" />
-              )}
-            </div>
-            <div className="flex gap-2">
-              <label className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
-                {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-                {heroImage ? t.common.replace : t.common.upload}
-                <input type="file" accept={Object.keys(IMAGE_TYPES).join(",")} className="sr-only" onChange={onFile} disabled={uploading} />
-              </label>
-              {heroImage && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setHeroImage("")}>
-                  <X className="size-4" /> {t.common.remove}
-                </Button>
-              )}
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">{s.coverHint}</p>
-          {(uploadError || err("hero_image_url")) && <p className="text-sm text-destructive">{uploadError || err("hero_image_url")}</p>}
-        </div>
+        <ImagePicker
+          label={s.cover}
+          hint={s.coverHint}
+          folder="hero"
+          value={heroImage}
+          onChange={setHeroImage}
+          onBusy={(d) => setUploading((n) => n + d)}
+          error={err("hero_image_url")}
+          previewClass="h-28 w-48 bg-muted"
+          fit="object-cover"
+        />
         <Bilingual label={s.heroTitle} name="hero_title" initial={initial} err={err} placeholder={{ en: "Find a scent, or a gift, they'll remember.", ar: "عطرٌ أو هديّة… تبقى في الذاكرة." }} />
         <Bilingual label={s.heroText} name="hero_text" initial={initial} err={err} multiline />
         <Bilingual label={s.ctaText} name="hero_cta" initial={initial} err={err} placeholder={{ en: "Shop now", ar: "تسوّق الآن" }} />
@@ -124,7 +108,7 @@ export function SettingsForm({ initial }: { initial: Values }) {
       </Section>
 
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t bg-background/95 py-4 backdrop-blur">
-        <Button type="submit" disabled={pending || uploading}>
+        <Button type="submit" disabled={pending || uploading > 0}>
           {pending ? t.common.saving : s.saveSettings}
         </Button>
         <a href="/" target="_blank" rel="noopener noreferrer" className="text-sm underline-offset-4 hover:underline">
@@ -135,9 +119,80 @@ export function SettingsForm({ initial }: { initial: Values }) {
             {state.error}
           </p>
         )}
-        {state.success && <p className="text-sm text-green-700">{state.success}</p>}
+        {state.success && <p className="text-sm text-green-700 dark:text-green-400">{state.success}</p>}
       </div>
     </form>
+  );
+}
+
+// Image upload to Storage with preview, Replace and Remove. The URL is saved with the form.
+function ImagePicker({
+  label,
+  hint,
+  folder,
+  value,
+  onChange,
+  onBusy,
+  error,
+  previewClass,
+  fit,
+}: {
+  label: string;
+  hint: string;
+  folder: string;
+  value: string;
+  onChange: (url: string) => void;
+  onBusy: (delta: 1 | -1) => void;
+  error?: string;
+  previewClass: string;
+  fit: "object-cover" | "object-contain";
+}) {
+  const { t } = useAdminT();
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadError("");
+    setUploading(true);
+    onBusy(1);
+    const result = await uploadImage(file, folder, { type: t.msg.imageType, size: t.msg.imageSize });
+    setUploading(false);
+    onBusy(-1);
+    if (result.error) setUploadError(result.error);
+    else if (result.url) onChange(result.url);
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className={cn("flex items-center justify-center overflow-hidden rounded-lg border", previewClass)}>
+          {value ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={value} alt="" className={cn("size-full", fit)} />
+          ) : (
+            <ImagePlus className="size-6 text-muted-foreground" />
+          )}
+        </div>
+        <div className="flex gap-2">
+          <label className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
+            {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+            {value ? t.common.replace : t.common.upload}
+            <input type="file" accept={Object.keys(IMAGE_TYPES).join(",")} className="sr-only" onChange={onFile} disabled={uploading} />
+          </label>
+          {value && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => onChange("")}>
+              <X className="size-4" /> {t.common.remove}
+            </Button>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">{hint}</p>
+      {(uploadError || error) && <p className="text-sm text-destructive">{uploadError || error}</p>}
+    </div>
   );
 }
 

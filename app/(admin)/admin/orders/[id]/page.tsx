@@ -294,7 +294,7 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
                       {item.product_name}
                       {item.from_exchange && <div className="text-xs text-muted-foreground">{o.addedByExchange}</div>}
                       {item.returned_quantity > 0 && (
-                        <div className="text-xs text-rose-700">{o.returnedExchanged(item.returned_quantity)}</div>
+                        <div className="text-xs text-rose-700 dark:text-rose-400">{o.returnedExchanged(item.returned_quantity)}</div>
                       )}
                     </TableCell>
                     <TableCell className="text-end tabular-nums">{item.quantity}</TableCell>
@@ -327,8 +327,8 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
                 {order.refunded_amount > 0 && (
                   <>
                     <TableRow>
-                      <TableCell colSpan={3} className="text-end font-normal text-rose-700">{t.common.refunded}</TableCell>
-                      <TableCell className="text-end tabular-nums text-rose-700">−{formatMoney(order.refunded_amount)}</TableCell>
+                      <TableCell colSpan={3} className="text-end font-normal text-rose-700 dark:text-rose-400">{t.common.refunded}</TableCell>
+                      <TableCell className="text-end tabular-nums text-rose-700 dark:text-rose-400">−{formatMoney(order.refunded_amount)}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell colSpan={3} className="text-end">{t.common.netAmount}</TableCell>

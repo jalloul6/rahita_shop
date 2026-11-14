@@ -25,7 +25,7 @@ export function CustomerNoteForm({ phoneKey, note }: { phoneKey: string; note: s
           {pending ? t.common.saving : t.customers.saveNote}
         </Button>
         {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-        {state.success && <p className="text-sm text-green-700">{state.success}</p>}
+        {state.success && <p className="text-sm text-green-700 dark:text-green-400">{state.success}</p>}
       </div>
     </form>
   );

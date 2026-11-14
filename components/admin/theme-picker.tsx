@@ -110,7 +110,7 @@ export function ThemePicker({ current }: { current: ThemeId }) {
             {state.error}
           </p>
         )}
-        {state.success && <p className="text-sm text-green-700">{state.success}</p>}
+        {state.success && <p className="text-sm text-green-700 dark:text-green-400">{state.success}</p>}
       </div>
     </form>
   );

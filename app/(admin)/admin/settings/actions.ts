@@ -13,6 +13,7 @@ const TEXT_FIELDS = [
   "store_name_ar",
   "tagline_en",
   "tagline_ar",
+  "logo_url",
   "whatsapp_number",
   "whish_number",
   "instagram_url",
@@ -47,7 +48,7 @@ export async function saveSettings(_prev: SettingsState, formData: FormData): Pr
   if (error) {
     return {
       error: /column|schema cache/i.test(error.message)
-        ? t.msg.runMigration(/store_name|tagline/.test(error.message) ? "007_store_branding.sql" : "006_cms_customers_multi_exchange.sql")
+        ? t.msg.runMigration(/logo_url/.test(error.message) ? "008_store_logo.sql" : /store_name|tagline/.test(error.message) ? "007_store_branding.sql" : "006_cms_customers_multi_exchange.sql")
         : error.message,
     };
   }

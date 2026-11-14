@@ -7,7 +7,7 @@ import { useAdminT } from "@/lib/i18n/admin-client";
 import type { AdminDict } from "@/lib/i18n/admin";
 import { cn } from "@/lib/utils";
 
-const ITEMS: { href: string; label: keyof AdminDict["nav"]; icon: typeof ShoppingBag; exact?: boolean; exclude?: string }[] = [
+const ITEMS: { href: string; label: Exclude<keyof AdminDict["nav"], "themes">; icon: typeof ShoppingBag; exact?: boolean; exclude?: string }[] = [
   { href: "/admin", label: "dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/orders/new", label: "newOrder", icon: PlusCircle, exact: true },
   { href: "/admin/orders", label: "orders", icon: ShoppingBag, exclude: "/admin/orders/new" },

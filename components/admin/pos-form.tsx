@@ -363,7 +363,7 @@ export function PosForm({ products, zones }: { products: Product[]; zones: Zone[
           <div className="space-y-2">
             <Label htmlFor="pos-promo">{p.promoCode}</Label>
             {promo ? (
-              <div className="flex items-center justify-between rounded-md bg-green-50 px-3 py-1.5 text-sm text-green-800">
+              <div className="flex items-center justify-between rounded-md bg-green-50 px-3 py-1.5 text-sm text-green-800 dark:bg-green-500/10 dark:text-green-300">
                 <span className="flex items-center gap-2">
                   <Tag className="size-4" />
                   <span className="font-semibold">{promo.code}</span>

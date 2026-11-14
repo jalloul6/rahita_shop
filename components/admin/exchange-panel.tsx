@@ -103,7 +103,7 @@ export function ExchangePanel({
           <ArrowLeftRight className="size-4" />
           {x.button}
         </Button>
-        {message.success && <p className="text-sm text-green-700">{message.success}</p>}
+        {message.success && <p className="text-sm text-green-700 dark:text-green-400">{message.success}</p>}
       </div>
     );
   }
@@ -213,9 +213,9 @@ export function ExchangePanel({
         <div
           className={cn(
             "flex justify-between border-t pt-2 text-base font-semibold",
-            diff > 0 && "text-amber-700",
-            diff < 0 && "text-rose-700",
-            diff === 0 && "text-green-700"
+            diff > 0 && "text-amber-700 dark:text-amber-300",
+            diff < 0 && "text-rose-700 dark:text-rose-400",
+            diff === 0 && "text-green-700 dark:text-green-400"
           )}
         >
           <dt>{diff > 0 ? x.toCollect : diff < 0 ? x.toRefund : x.difference}</dt>

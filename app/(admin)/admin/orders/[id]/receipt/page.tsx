@@ -48,7 +48,12 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
       <article className="space-y-5 rounded-lg border-2 border-black bg-white p-6 text-black print:rounded-none print:border-2">
         <header className="flex items-start justify-between gap-4 border-b-2 border-black pb-4">
           <div>
-            <div className="text-2xl font-bold">{brand.name}</div>
+            {settings.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={settings.logoUrl} alt={brand.name} className="mb-1 h-14 w-auto max-w-[14rem] object-contain" />
+            ) : (
+              <div className="text-2xl font-bold">{brand.name}</div>
+            )}
             <div className="text-sm">{brand.tagline}</div>
             {SHOP_PHONE && <div className="text-sm">{SHOP_PHONE}</div>}
           </div>

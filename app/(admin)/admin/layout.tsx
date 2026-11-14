@@ -3,10 +3,11 @@ import type { Metadata } from "next";
 import { LogOut } from "lucide-react";
 import { AdminLanguageSwitcher } from "@/components/admin/admin-language-switcher";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { AdminDarkToggle, AdminThemeSelect } from "@/components/admin/admin-theme-switcher";
 import { Button } from "@/components/ui/button";
 import { AdminI18nProvider } from "@/lib/i18n/admin-client";
 import { adminDictionaries } from "@/lib/i18n/admin";
-import { getAdminLocale } from "@/lib/i18n/admin-server";
+import { getAdminLocale, getAdminTheme } from "@/lib/i18n/admin-server";
 import { getShopSettings } from "@/lib/data/storefront";
 import { brandFor } from "@/lib/settings";
 import { signOut } from "./actions";
@@ -19,8 +20,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // Access is enforced in proxy.ts (session + is_admin) and again in each action/route handler.
-// The dashboard language comes from the admin_lang cookie (request-time data), so the shell
-// renders inside Suspense and sets lang/dir for the whole admin area.
+// The dashboard language and theme come from the admin_lang / admin_theme cookies (request-time
+// data), so the shell renders inside Suspense and sets lang/dir/data-admin-theme for all of /admin.
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
     <Suspense fallback={<div className="min-h-screen bg-background" />}>
@@ -30,7 +31,7 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
 }
 
 async function AdminShell({ children }: { children: React.ReactNode }) {
-  const [locale, settings] = await Promise.all([getAdminLocale(), getShopSettings()]);
+  const [locale, theme, settings] = await Promise.all([getAdminLocale(), getAdminTheme(), getShopSettings()]);
   const t = adminDictionaries[locale];
   const shopName = brandFor(settings, locale).name;
 
@@ -40,13 +41,23 @@ async function AdminShell({ children }: { children: React.ReactNode }) {
         lang={locale}
         dir={locale === "ar" ? "rtl" : "ltr"}
         data-locale={locale}
-        className="flex min-h-screen flex-col md:flex-row print:block"
+        data-admin-theme={theme}
+        className="flex min-h-screen flex-col bg-background text-foreground md:flex-row print:block print:bg-white"
       >
         <aside className="border-b bg-card md:w-60 md:shrink-0 md:border-e md:border-b-0 print:hidden">
           <div className="flex items-center justify-between gap-2 px-4 py-3 md:block md:space-y-3 md:py-5">
-            <span className="text-lg font-semibold tracking-tight md:block">{t.brand(shopName)}</span>
+            {settings.logoUrl ? (
+              <div className="flex min-w-0 items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={settings.logoUrl} alt={shopName} className="h-9 w-auto max-w-[8rem] object-contain" />
+                <span className="truncate text-xs font-medium tracking-wide text-muted-foreground uppercase">{t.nav.adminLabel}</span>
+              </div>
+            ) : (
+              <span className="text-lg font-semibold tracking-tight md:block">{t.brand(shopName)}</span>
+            )}
             <div className="flex items-center gap-1 md:hidden">
               <AdminLanguageSwitcher />
+              <AdminDarkToggle theme={theme} />
               <form action={signOut}>
                 <Button type="submit" variant="ghost" size="sm">
                   <LogOut className="size-4 rtl:rotate-180" />
@@ -54,7 +65,13 @@ async function AdminShell({ children }: { children: React.ReactNode }) {
                 </Button>
               </form>
             </div>
-            <AdminLanguageSwitcher className="hidden md:inline-flex" />
+            <div className="hidden space-y-2 md:block">
+              <div className="flex items-center gap-2">
+                <AdminLanguageSwitcher />
+                <AdminDarkToggle theme={theme} />
+              </div>
+              <AdminThemeSelect theme={theme} className="w-full" />
+            </div>
           </div>
           <div className="overflow-x-auto px-2 pb-2 md:px-3">
             <AdminNav />

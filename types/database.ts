@@ -63,6 +63,7 @@ export type ShopSettings = {
   store_name_ar: string | null;
   tagline_en: string | null;
   tagline_ar: string | null;
+  logo_url: string | null;
   updated_at: string;
 };
 
