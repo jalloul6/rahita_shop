@@ -32,13 +32,14 @@ export function LanguageSwitcher() {
       aria-label={t.header.switchAria}
       lang={next}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-1.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground sm:px-3",
         pending && "opacity-60",
         next === "ar" && "font-[family-name:var(--font-cairo)]"
       )}
     >
       <Languages className="size-4" />
-      {t.header.switchLabel}
+      {/* Icon only on phones to leave room for the logo + store name; aria-label names the action */}
+      <span className="hidden sm:inline">{t.header.switchLabel}</span>
     </button>
   );
 }
