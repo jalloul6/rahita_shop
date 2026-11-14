@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { checkAdminPromo, createManualOrder } from "@/app/(admin)/admin/orders/new/actions";
+import { checkAdminPromo, createManualOrder, searchCustomers } from "@/app/(admin)/admin/orders/new/actions";
 import { formatMoney } from "@/lib/format";
 import { computeDiscount } from "@/lib/promo";
 import { cn } from "@/lib/utils";
-import type { DiscountType, PaymentMethod } from "@/types/database";
+import type { CustomerRow, DiscountType, PaymentMethod } from "@/types/database";
 
 type Product = {
   id: string;
@@ -55,6 +55,22 @@ export function PosForm({ products, zones }: { products: Product[]; zones: Zone[
   const [error, setError] = useState("");
   const [checkingPromo, startPromo] = useTransition();
   const [saving, startSave] = useTransition();
+  const [custQuery, setCustQuery] = useState("");
+  const [custResults, setCustResults] = useState<CustomerRow[]>([]);
+  const [searchingCust, startCustSearch] = useTransition();
+
+  function findCustomers(value: string) {
+    setCustQuery(value);
+    if (value.trim().length < 2) return setCustResults([]);
+    startCustSearch(async () => setCustResults(await searchCustomers(value)));
+  }
+
+  function pickCustomer(c: CustomerRow) {
+    setCustomer((prev) => ({ ...prev, name: c.customer_name, phone1: c.phone, phone2: c.phone2 ?? "", address: c.address ?? "" }));
+    if (c.zone_id && zones.some((z) => z.id === c.zone_id)) setZoneId(c.zone_id);
+    setCustQuery("");
+    setCustResults([]);
+  }
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -251,6 +267,39 @@ export function PosForm({ products, zones }: { products: Product[]; zones: Zone[
       <aside className="h-fit space-y-5 rounded-lg border bg-card p-5 xl:sticky xl:top-6">
         <div className="space-y-3">
           <h2 className="font-medium">Customer</h2>
+          <div className="relative space-y-2">
+            <Label htmlFor="pos-customer-search">Existing customer</Label>
+            <div className="relative">
+              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="pos-customer-search"
+                value={custQuery}
+                onChange={(e) => findCustomers(e.target.value)}
+                placeholder="Search by name or phone…"
+                className="pl-9"
+                autoComplete="off"
+              />
+            </div>
+            {custQuery.trim().length >= 2 && (
+              <ul className="absolute z-10 w-full divide-y rounded-md border bg-popover text-sm shadow-md">
+                {custResults.length === 0 ? (
+                  <li className="px-3 py-2 text-muted-foreground">{searchingCust ? "Searching…" : "No matching customers."}</li>
+                ) : (
+                  custResults.map((c) => (
+                    <li key={c.phone_key}>
+                      <button type="button" onClick={() => pickCustomer(c)} className="w-full px-3 py-2 text-left hover:bg-muted">
+                        <span className="font-medium">{c.customer_name}</span>
+                        <span className="ml-2 text-muted-foreground tabular-nums">{c.phone}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {c.zone_name ?? "No zone"} · {c.orders_count} order{Number(c.orders_count) === 1 ? "" : "s"}
+                        </span>
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+          </div>
           <div className="space-y-2">
             <Label htmlFor="pos-name">Name{source === "in_store" && <span className="text-muted-foreground"> (optional)</span>}</Label>
             <Input id="pos-name" placeholder={source === "in_store" ? "Walk-in customer" : ""} {...field("name")} />

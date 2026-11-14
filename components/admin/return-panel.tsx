@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { processReturn } from "@/app/(admin)/admin/orders/actions";
+import { ShippingToggle } from "@/components/admin/exchange-panel";
 import { formatMoney } from "@/lib/format";
 
 type Item = { id: string; product_name: string; quantity: number; returned_quantity: number; unit_price: number };
@@ -16,29 +17,34 @@ export function ReturnPanel({
   items,
   maxRefund,
   discountRatio,
+  shippingFee,
+  shippingRefunded,
 }: {
   orderId: string;
   items: Item[];
   maxRefund: number; // order total minus what was already refunded
   discountRatio: number; // share of the subtotal that was discounted, so refunds match what was paid
+  shippingFee: number;
+  shippingRefunded: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [restock, setRestock] = useState(true);
   const [reason, setReason] = useState("");
   const [refund, setRefund] = useState<string | null>(null); // null = follow the suggestion
+  const [refundShipping, setRefundShipping] = useState(false);
   const [message, setMessage] = useState<{ error?: string; success?: string }>({});
   const [pending, start] = useTransition();
 
   const returnable = items.filter((i) => i.quantity > i.returned_quantity);
+  const shipping = refundShipping && shippingFee > 0 && !shippingRefunded ? shippingFee : 0;
+  const itemsMax = Math.max(0, maxRefund - shipping);
   const suggested =
     Math.round(
-      Math.min(
-        maxRefund,
-        returnable.reduce((sum, i) => sum + (qty[i.id] ?? 0) * i.unit_price * (1 - discountRatio), 0)
-      ) * 100
+      Math.min(itemsMax, returnable.reduce((sum, i) => sum + (qty[i.id] ?? 0) * i.unit_price * (1 - discountRatio), 0)) * 100
     ) / 100;
   const refundValue = refund === null ? suggested : Number(refund) || 0;
+  const totalRefund = Math.round((refundValue + shipping) * 100) / 100;
   const selected = returnable.reduce((n, i) => n + (qty[i.id] ?? 0), 0);
 
   if (returnable.length === 0) return null;
@@ -50,10 +56,10 @@ export function ReturnPanel({
   function submit() {
     setMessage({});
     if (selected === 0) return setMessage({ error: "Choose at least one item to return." });
-    if (refundValue < 0 || refundValue > maxRefund) {
-      return setMessage({ error: `Refund must be between ${formatMoney(0)} and ${formatMoney(maxRefund)}.` });
+    if (refundValue < 0 || totalRefund > maxRefund) {
+      return setMessage({ error: `Total refund must be between ${formatMoney(0)} and ${formatMoney(maxRefund)}.` });
     }
-    const confirmText = `Return ${selected} item(s) and refund ${formatMoney(refundValue)}?${
+    const confirmText = `Return ${selected} item(s) and refund ${formatMoney(totalRefund)}${shipping > 0 ? " (incl. shipping)" : ""}?${
       restock ? " Items go back into stock." : " Items will NOT be restocked."
     } This cannot be undone.`;
     if (!window.confirm(confirmText)) return;
@@ -67,12 +73,14 @@ export function ReturnPanel({
         restock,
         refundAmount: refundValue,
         reason,
+        refundShipping: shipping > 0,
       });
       setMessage(result);
       if (result.success) {
         setQty({});
         setReason("");
         setRefund(null);
+        setRefundShipping(false);
         setOpen(false);
       }
     });
@@ -146,9 +154,11 @@ export function ReturnPanel({
         </span>
       </label>
 
+      <ShippingToggle fee={shippingFee} refunded={shippingRefunded} checked={refundShipping} onChange={setRefundShipping} />
+
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="refund-amount">Refund to customer ($)</Label>
+          <Label htmlFor="refund-amount">Items refund ($)</Label>
           <Input
             id="refund-amount"
             inputMode="decimal"
@@ -156,7 +166,8 @@ export function ReturnPanel({
             onChange={(e) => setRefund(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            Suggested from returned items (after discount). Max {formatMoney(maxRefund)}. Use 0 for exchanges.
+            Suggested from returned items (after discount). Max {formatMoney(itemsMax)}.
+            {shipping > 0 && ` Plus shipping ${formatMoney(shipping)} = ${formatMoney(totalRefund)} total.`}
           </p>
         </div>
         <div className="space-y-2">
@@ -175,7 +186,7 @@ export function ReturnPanel({
 
       <div className="flex gap-2">
         <Button type="button" onClick={submit} disabled={pending || selected === 0}>
-          {pending ? "Saving…" : `Confirm return · refund ${formatMoney(refundValue)}`}
+          {pending ? "Saving…" : `Confirm return · refund ${formatMoney(totalRefund)}`}
         </Button>
         <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
           Cancel

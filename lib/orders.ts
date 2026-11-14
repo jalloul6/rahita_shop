@@ -78,6 +78,12 @@ export const ORDER_SOURCE_LABELS: Record<OrderSource, string> = {
   phone: "Phone / WhatsApp",
 };
 
+// Exchange price difference for the admin: positive = collect, negative = refund.
+export function exchangeMoney(diff: number) {
+  const amount = `$${Math.abs(diff).toFixed(2)}`;
+  return diff > 0 ? `Collected ${amount}` : diff < 0 ? `Refunded ${amount}` : "No price difference";
+}
+
 // Return / Refund is offered for delivered or paid orders that still have units to return.
 // Mirrors the checks in process_return().
 export function canReturn(order: { status: OrderStatus; payment_status: PaymentStatus }) {

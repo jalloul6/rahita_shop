@@ -6,7 +6,7 @@ import { AddToCart } from "@/components/storefront/add-to-cart";
 import { getStoreProduct } from "@/lib/data/storefront";
 import { formatMoney } from "@/lib/format";
 import { getDictionary } from "@/lib/i18n/server";
-import { LOW_STOCK } from "@/lib/products";
+import { LOW_STOCK, discountPercent } from "@/lib/products";
 import { cn } from "@/lib/utils";
 
 export default function ProductPage(props: PageProps<"/products/[id]">) {
@@ -23,6 +23,7 @@ async function Product({ params }: { params: PageProps<"/products/[id]">["params
   if (!product) notFound();
 
   const stock = product.stock_quantity;
+  const off = discountPercent(product.price, product.compare_at_price);
   const categoryHref = `/products?category=${encodeURIComponent(product.category)}`;
 
   return (
@@ -58,8 +59,20 @@ async function Product({ params }: { params: PageProps<"/products/[id]">["params
               {product.category}
             </Link>
             <h1 className="font-heading text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">{product.name}</h1>
-            <div className="text-2xl font-semibold tabular-nums sm:text-3xl">
-              <bdi>{formatMoney(product.price)}</bdi>
+            <div className="flex flex-wrap items-center gap-3 tabular-nums">
+              <span className={cn("text-2xl font-semibold sm:text-3xl", off !== null && "text-destructive")}>
+                <bdi>{formatMoney(product.price)}</bdi>
+              </span>
+              {off !== null && (
+                <>
+                  <s className="text-lg text-muted-foreground" aria-label={t.product.wasPrice}>
+                    <bdi>{formatMoney(product.compare_at_price!)}</bdi>
+                  </s>
+                  <span className="rounded-full bg-destructive px-2.5 py-0.5 text-xs font-bold text-white">
+                    {t.product.sale} <bdi>-{off}%</bdi>
+                  </span>
+                </>
+              )}
             </div>
             <span
               className={cn(

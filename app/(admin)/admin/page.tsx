@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { LOW_STOCK } from "@/lib/products";
+import { ALERT_STOCK } from "@/lib/products";
 import { orderRef } from "@/lib/orders";
 import { SHOP_TIMEZONE } from "@/lib/shop";
 import { createClient } from "@/lib/supabase/server";
@@ -39,7 +39,7 @@ async function DashboardContent() {
       .from("products")
       .select("id, name, stock_quantity")
       .eq("is_active", true)
-      .lte("stock_quantity", LOW_STOCK)
+      .lte("stock_quantity", ALERT_STOCK)
       .order("stock_quantity", { ascending: true })
       .order("name")
       .limit(20),
@@ -66,6 +66,31 @@ async function DashboardContent() {
 
   return (
     <>
+      {products.length > 0 && (
+        <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950">
+          <div className="flex items-center gap-2 font-semibold">
+            <AlertTriangle className="size-5 text-amber-600" />
+            Low stock: {products.length} product{products.length === 1 ? "" : "s"} at {ALERT_STOCK} or fewer
+          </div>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {products.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/admin/products/${p.id}/edit`}
+                  className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-white px-3 py-1 text-sm hover:border-amber-500"
+                >
+                  <span className="font-medium">{p.name}</span>
+                  <span className={p.stock_quantity === 0 ? "font-semibold text-red-700" : "font-semibold text-amber-700"}>
+                    {p.stock_quantity === 0 ? "Out" : `${p.stock_quantity} left`}
+                  </span>
+                  <span className="text-xs text-muted-foreground underline">Restock</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Net revenue" value={formatMoney(kpis.total_sales)} hint="Delivered or paid orders, after refunds" />
         <Stat
@@ -133,12 +158,12 @@ async function DashboardContent() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="size-4 text-amber-600" />
-              Stock alerts
+              Low stock (≤ {ALERT_STOCK})
             </CardTitle>
           </CardHeader>
           <CardContent>
             {products.length === 0 ? (
-              <p className="text-sm text-muted-foreground">All products have more than {LOW_STOCK} in stock.</p>
+              <p className="text-sm text-muted-foreground">All products have more than {ALERT_STOCK} in stock.</p>
             ) : (
               <ul className="divide-y">
                 {products.map((p) => (

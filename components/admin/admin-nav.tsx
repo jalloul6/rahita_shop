@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, MapPin, Package, Palette, PlusCircle, ShoppingBag, TicketPercent } from "lucide-react";
+import { LayoutDashboard, MapPin, Package, Palette, PlusCircle, Settings, ShoppingBag, TicketPercent, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS: { href: string; label: string; icon: typeof ShoppingBag; exact?: boolean; exclude?: string }[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/orders/new", label: "New Order", icon: PlusCircle, exact: true },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag, exclude: "/admin/orders/new" },
+  { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/zones", label: "Shipping Zones", icon: MapPin },
   { href: "/admin/promos", label: "Promo Codes", icon: TicketPercent },
   { href: "/admin/appearance", label: "Appearance", icon: Palette },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export function AdminNav() {

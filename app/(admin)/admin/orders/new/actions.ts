@@ -4,7 +4,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getAdminClient } from "@/lib/supabase/guard";
-import type { DiscountType } from "@/types/database";
+import type { CustomerRow, DiscountType } from "@/types/database";
 
 const inputSchema = z.object({
   source: z.enum(["in_store", "phone"]),
@@ -61,6 +61,15 @@ export async function createManualOrder(input: ManualOrderInput): Promise<{ erro
   updateTag("products"); // stock changed
   revalidatePath("/admin/orders");
   redirect(`/admin/orders/${data[0].order_id}/receipt`);
+}
+
+// POS "existing customer" lookup by name or phone.
+export async function searchCustomers(query: string): Promise<CustomerRow[]> {
+  const supabase = await getAdminClient();
+  const q = String(query ?? "").trim().slice(0, 60);
+  if (!supabase || q.length < 2) return [];
+  const { data } = await supabase.rpc("admin_customers", { p_search: q, p_limit: 8 });
+  return data ?? [];
 }
 
 export type AdminPromoResult =

@@ -14,7 +14,7 @@ import { useIsClient } from "@/lib/cart/use-is-client";
 import { formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
 import { computeDiscount } from "@/lib/promo";
-import { WHISH_NUMBER } from "@/lib/shop";
+import { useShopContact } from "@/lib/shop-context";
 import { cn } from "@/lib/utils";
 import type { DiscountType, PaymentMethod } from "@/types/database";
 
@@ -23,6 +23,7 @@ type AppliedPromo = { code: string; discount_type: DiscountType; discount_value:
 
 export function CheckoutForm({ zones }: { zones: Zone[] }) {
   const { t } = useI18n();
+  const { whishNumber } = useShopContact();
   const [state, action, pending] = useActionState<CheckoutState, FormData>(placeOrder, {});
   const items = useCart((s) => s.items);
   const ready = useIsClient();
@@ -156,9 +157,9 @@ export function CheckoutForm({ zones }: { zones: Zone[] }) {
               <div className="text-sm text-muted-foreground">{t.checkout.whishSendTo}</div>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="font-mono text-2xl font-bold tracking-wider" dir="ltr">
-                  {WHISH_NUMBER}
+                  {whishNumber}
                 </span>
-                <CopyButton value={WHISH_NUMBER} />
+                <CopyButton value={whishNumber} />
               </div>
               <p className="text-sm">{t.checkout.whishInstructions(formatMoney(total))}</p>
             </div>

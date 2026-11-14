@@ -80,7 +80,7 @@ export function ProductForm({
         />
       </Field>
 
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2">
         <Field label="Price" htmlFor="price" error={err("price")}>
           <Input
             id="price"
@@ -88,6 +88,15 @@ export function ProductForm({
             inputMode="decimal"
             required
             defaultValue={v?.price ?? (product ? String(product.price) : "")}
+          />
+        </Field>
+        <Field label="Compare-at price (optional)" htmlFor="compare_at_price" error={err("compare_at_price")}>
+          <Input
+            id="compare_at_price"
+            name="compare_at_price"
+            inputMode="decimal"
+            placeholder="Original price"
+            defaultValue={v?.compare_at_price ?? (product?.compare_at_price != null ? String(product.compare_at_price) : "")}
           />
         </Field>
         <Field label="Stock quantity" htmlFor="stock_quantity" error={err("stock_quantity")}>
@@ -156,6 +165,12 @@ export function ProductForm({
           label="Sponsored / Featured"
           hint="Shown in the featured row on the home page."
           defaultChecked={v ? v.is_sponsored === "on" : (product?.is_sponsored ?? false)}
+        />
+        <Check
+          name="is_on_offer"
+          label="On offer"
+          hint="Shown in the Special offers section on the home page (bundles, deals)."
+          defaultChecked={v ? v.is_on_offer === "on" : (product?.is_on_offer ?? false)}
         />
         <Check
           name="is_active"

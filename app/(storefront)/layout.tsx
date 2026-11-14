@@ -1,14 +1,16 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Banknote, Smartphone, Truck } from "lucide-react";
+import { Banknote, Camera, MessageCircle, PackageSearch, Smartphone, Truck } from "lucide-react";
 import { CartLink } from "@/components/storefront/cart-link";
 import { LanguageSwitcher } from "@/components/storefront/language-switcher";
 import { ThemeToggle } from "@/components/storefront/theme-toggle";
-import { getShopTheme } from "@/lib/data/storefront";
+import { getShopSettings } from "@/lib/data/storefront";
 import { I18nProvider } from "@/lib/i18n/client";
 import { dictionaries, dirOf } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/server";
 import { getColorMode } from "@/lib/preferences";
+import { pick, waLink } from "@/lib/settings";
+import { ShopContactProvider } from "@/lib/shop-context";
 import { SHOP_NAME, SHOP_PHONE } from "@/lib/shop";
 import { resolveTheme } from "@/lib/themes";
 
@@ -26,13 +28,17 @@ export default function StorefrontLayout({ children }: LayoutProps<"/">) {
 // language via lang/dir/data-locale.
 // Both only affect the storefront: /admin keeps its own neutral, English, LTR layout.
 async function StoreShell({ children }: { children: React.ReactNode }) {
-  const [shopTheme, locale, mode] = await Promise.all([getShopTheme(), getLocale(), getColorMode()]);
+  const [settings, locale, mode] = await Promise.all([getShopSettings(), getLocale(), getColorMode()]);
+  const shopTheme = settings.theme;
   // Visitor light/dark choice (header toggle) overrides the shop theme for this visitor only.
   const theme = resolveTheme(shopTheme, mode);
   const t = dictionaries[locale];
+  const announcement = pick(settings.announcement, locale, t.header.announcement);
+  const copyright = pick(settings.copyright, locale, `© ${SHOP_NAME}. ${t.footer.rights}`);
 
   return (
     <I18nProvider locale={locale}>
+      <ShopContactProvider value={{ whatsappNumber: settings.whatsappNumber, whishNumber: settings.whishNumber }}>
       <div
         data-store-root=""
         data-theme={theme}
@@ -41,11 +47,13 @@ async function StoreShell({ children }: { children: React.ReactNode }) {
         dir={dirOf(locale)}
         className="flex min-h-screen flex-col bg-background font-sans text-foreground"
       >
-        <div className="bg-hero text-hero-foreground">
-          <p className="mx-auto max-w-6xl px-4 py-2 text-center text-xs font-medium tracking-wide sm:text-sm">
-            {t.header.announcement}
-          </p>
-        </div>
+        {settings.announcement.enabled && (
+          <div className="bg-hero text-hero-foreground">
+            <p className="mx-auto max-w-6xl px-4 py-2 text-center text-xs font-medium tracking-wide sm:text-sm">
+              {announcement}
+            </p>
+          </div>
+        )}
 
         <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4">
@@ -68,6 +76,15 @@ async function StoreShell({ children }: { children: React.ReactNode }) {
               >
                 {t.header.shop}
               </Link>
+              <Link
+                href="/track"
+                aria-label={t.header.track}
+                title={t.header.track}
+                className="inline-flex items-center gap-1.5 rounded-md px-2 py-2 transition-colors hover:bg-accent hover:text-accent-foreground sm:px-3"
+              >
+                <PackageSearch className="size-5 md:hidden" />
+                <span className="hidden md:inline">{t.header.track}</span>
+              </Link>
               <CartLink />
               <ThemeToggle key={theme} shopTheme={shopTheme} activeTheme={theme} />
               <LanguageSwitcher />
@@ -87,6 +104,26 @@ async function StoreShell({ children }: { children: React.ReactNode }) {
                   {SHOP_PHONE}
                 </p>
               )}
+              <div className="flex flex-wrap gap-2 pt-1 text-sm">
+                <a
+                  href={waLink(settings.whatsappNumber)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 hover:bg-accent hover:text-accent-foreground"
+                >
+                  <MessageCircle className="size-4" /> WhatsApp
+                </a>
+                {settings.instagramUrl && (
+                  <a
+                    href={settings.instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Camera className="size-4" /> Instagram
+                  </a>
+                )}
+              </div>
             </div>
             <div className="space-y-2 text-sm">
               <div className="font-semibold">{t.footer.shop}</div>
@@ -99,6 +136,11 @@ async function StoreShell({ children }: { children: React.ReactNode }) {
                 <li>
                   <Link href="/cart" className="hover:text-foreground">
                     {t.footer.yourCart}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/track" className="hover:text-foreground">
+                    {t.header.track}
                   </Link>
                 </li>
               </ul>
@@ -118,11 +160,10 @@ async function StoreShell({ children }: { children: React.ReactNode }) {
               </ul>
             </div>
           </div>
-          <div className="border-t py-4 text-center text-xs text-muted-foreground">
-            © {SHOP_NAME}. {t.footer.rights}
-          </div>
+          <div className="border-t py-4 text-center text-xs text-muted-foreground">{copyright}</div>
         </footer>
       </div>
+      </ShopContactProvider>
     </I18nProvider>
   );
 }

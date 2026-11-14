@@ -1,7 +1,8 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
-import { DEFAULT_THEME, isThemeId, type ThemeId } from "@/lib/themes";
+import { resolveSettings, type StoreSettings } from "@/lib/settings";
+import type { ThemeId } from "@/lib/themes";
 
 // Public, cached catalog reads. Tags are invalidated by admin actions (updateTag).
 // On a failed read we return an empty result with a very short lifetime so a transient
@@ -16,10 +17,35 @@ export type StoreProduct = {
   image_url: string | null;
   category: string;
   is_sponsored: boolean;
+  compare_at_price: number | null;
+  is_on_offer: boolean;
 };
 
-const COLUMNS = "id, name, description, price, stock_quantity, image_url, category, is_sponsored";
+const COLUMNS =
+  "id, name, description, price, stock_quantity, image_url, category, is_sponsored, compare_at_price, is_on_offer";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Products flagged "On offer" in the admin, for the home page offers section.
+export async function getOfferProducts(): Promise<StoreProduct[]> {
+  "use cache";
+  cacheTag("products");
+  try {
+    const { data, error } = await createPublicClient()
+      .from("products")
+      .select(COLUMNS)
+      .eq("is_active", true)
+      .eq("is_on_offer", true)
+      .order("created_at", { ascending: false })
+      .limit(8);
+    if (error) throw error;
+    cacheLife("minutes");
+    return data;
+  } catch (e) {
+    console.error("getOfferProducts failed", e);
+    cacheLife("seconds");
+    return [];
+  }
+}
 
 export async function getSponsoredProducts(): Promise<StoreProduct[]> {
   "use cache";
@@ -138,19 +164,24 @@ export async function getCheckoutZones(): Promise<{ id: string; zone_name: strin
   }
 }
 
-// Storefront theme chosen in /admin/appearance. Falls back to the default theme if the
-// settings table is missing or unreachable (cached briefly so the store never breaks).
-export async function getShopTheme(): Promise<ThemeId> {
+// Shop settings from /admin/appearance and /admin/settings (theme, contact numbers, announcement
+// bar, hero). Falls back to built-in defaults if the row is missing or unreachable (cached briefly
+// so the store never breaks).
+export async function getShopSettings(): Promise<StoreSettings> {
   "use cache";
   cacheTag("settings");
   try {
-    const { data, error } = await createPublicClient().from("shop_settings").select("theme").eq("id", 1).maybeSingle();
+    const { data, error } = await createPublicClient().from("shop_settings").select("*").eq("id", 1).maybeSingle();
     if (error) throw error;
     cacheLife("hours");
-    return isThemeId(data?.theme) ? data.theme : DEFAULT_THEME;
+    return resolveSettings(data);
   } catch (e) {
-    console.error("getShopTheme failed", e);
+    console.error("getShopSettings failed", e);
     cacheLife("minutes");
-    return DEFAULT_THEME;
+    return resolveSettings(null);
   }
+}
+
+export async function getShopTheme(): Promise<ThemeId> {
+  return (await getShopSettings()).theme;
 }

@@ -5,7 +5,7 @@ import { PrintButton } from "@/components/admin/print-button";
 import { getOrder } from "@/lib/data/orders";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { SHOP_NAME, SHOP_PHONE, SHOP_TAGLINE } from "@/lib/shop";
-import { PAYMENT_METHOD_LABELS, orderRef, statusLabel } from "@/lib/orders";
+import { PAYMENT_METHOD_LABELS, exchangeMoney, orderRef, statusLabel } from "@/lib/orders";
 
 export const metadata: Metadata = { title: "Receipt" };
 
@@ -23,6 +23,10 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
   if (!order) notFound();
   const inStore = order.order_source === "in_store";
   const itemNames = new Map(order.order_items.map((i) => [i.id, i.product_name]));
+  // Lines are listed as sold; exchanged-out units are credited back so the subtotal adds up.
+  const itemsTotal = order.order_items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
+  const hasExchanges = order.order_exchanges.length > 0 || order.order_exchange_batches.length > 0;
+  const exchangeCredit = hasExchanges ? Math.round((itemsTotal - order.subtotal) * 100) / 100 : 0;
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -85,7 +89,8 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
                 <tr key={item.id} className="border-b border-neutral-300">
                   <td className="py-1.5">
                     {item.product_name}
-                    {item.returned_quantity > 0 && <span className="text-xs"> ({item.returned_quantity} returned)</span>}
+                    {item.from_exchange && <span className="text-xs"> (exchange)</span>}
+                    {item.returned_quantity > 0 && <span className="text-xs"> ({item.returned_quantity} returned/exchanged)</span>}
                   </td>
                   <td className="py-1.5 text-right tabular-nums">{item.quantity}</td>
                   <td className="py-1.5 text-right tabular-nums">{formatMoney(item.unit_price)}</td>
@@ -94,7 +99,19 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
               ))}
             </tbody>
           </table>
-          <dl className="mt-2 ml-auto w-56 space-y-0.5 text-sm">
+          <dl className="mt-2 ml-auto w-64 space-y-0.5 text-sm">
+            {exchangeCredit > 0 && (
+              <>
+                <div className="flex justify-between">
+                  <dt>Items</dt>
+                  <dd className="tabular-nums">{formatMoney(itemsTotal)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt>Exchanged items returned</dt>
+                  <dd className="tabular-nums">−{formatMoney(exchangeCredit)}</dd>
+                </div>
+              </>
+            )}
             <div className="flex justify-between">
               <dt>Subtotal</dt>
               <dd className="tabular-nums">{formatMoney(order.subtotal)}</dd>
@@ -129,6 +146,50 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
             )}
           </dl>
         </section>
+
+        {order.order_exchange_batches.length > 0 && (
+          <section className="space-y-1 text-sm">
+            <div className="text-xs font-semibold uppercase tracking-wide">Exchanges</div>
+            {[...order.order_exchange_batches]
+              .sort((a, b) => a.created_at.localeCompare(b.created_at))
+              .map((b) => (
+                <div key={b.id} className="flex justify-between gap-4 border-b border-neutral-300 py-1">
+                  <span>
+                    {formatDateTime(b.created_at)}:{" "}
+                    {b.order_exchange_lines
+                      .filter((l) => l.direction === "returned")
+                      .map((l) => `${l.quantity} × ${l.product_name}${l.reason ? ` (${l.reason})` : ""}`)
+                      .join(", ")}{" "}
+                    →{" "}
+                    {b.order_exchange_lines
+                      .filter((l) => l.direction === "new")
+                      .map((l) => `${l.quantity} × ${l.product_name}`)
+                      .join(", ")}
+                    {b.shipping_refund > 0 ? ` · shipping refunded ${formatMoney(b.shipping_refund)}` : ""}
+                  </span>
+                  <span className="shrink-0 tabular-nums">{exchangeMoney(b.price_difference)}</span>
+                </div>
+              ))}
+          </section>
+        )}
+
+        {order.order_exchanges.length > 0 && (
+          <section className="space-y-1 text-sm">
+            <div className="text-xs font-semibold uppercase tracking-wide">Earlier exchanges</div>
+            {[...order.order_exchanges]
+              .sort((a, b) => a.created_at.localeCompare(b.created_at))
+              .map((x) => (
+                <div key={x.id} className="flex justify-between gap-4 border-b border-neutral-300 py-1">
+                  <span>
+                    {formatDateTime(x.created_at)}: {x.returned_quantity} × {x.returned_product_name} → {x.new_quantity} ×{" "}
+                    {x.new_product_name}
+                    {x.reason ? ` (${x.reason})` : ""}
+                  </span>
+                  <span className="shrink-0 tabular-nums">{exchangeMoney(x.price_difference)}</span>
+                </div>
+              ))}
+          </section>
+        )}
 
         {order.order_returns.length > 0 && (
           <section className="space-y-1 text-sm">

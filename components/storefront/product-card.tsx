@@ -4,11 +4,12 @@ import { QuickAdd } from "@/components/storefront/add-to-cart";
 import type { StoreProduct } from "@/lib/data/storefront";
 import { formatMoney } from "@/lib/format";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
-import { LOW_STOCK } from "@/lib/products";
+import { LOW_STOCK, discountPercent } from "@/lib/products";
 
 export function ProductCard({ product, t }: { product: StoreProduct; t: Dictionary }) {
   const out = product.stock_quantity < 1;
   const low = !out && product.stock_quantity <= LOW_STOCK;
+  const off = discountPercent(product.price, product.compare_at_price);
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground transition-all duration-300 hover:-translate-y-1 hover:border-foreground/15 hover:shadow-xl hover:shadow-foreground/5">
@@ -24,6 +25,11 @@ export function ProductCard({ product, t }: { product: StoreProduct; t: Dictiona
             />
           ) : (
             <ImageIcon className="size-10 text-muted-foreground" />
+          )}
+          {off !== null && (
+            <span className="absolute end-2 top-2 rounded-full bg-destructive px-2.5 py-0.5 text-[0.7rem] font-bold text-white" dir="ltr">
+              -{off}%
+            </span>
           )}
           <div className="absolute start-2 top-2 flex flex-col items-start gap-1">
             {product.is_sponsored && (
@@ -46,8 +52,15 @@ export function ProductCard({ product, t }: { product: StoreProduct; t: Dictiona
         <div className="space-y-1 p-3 sm:p-4">
           <div className="text-[0.7rem] font-medium tracking-wider text-muted-foreground uppercase">{product.category}</div>
           <h3 className="line-clamp-2 min-h-[2.5em] text-sm leading-tight font-medium sm:text-base">{product.name}</h3>
-          <div className="pt-0.5 font-semibold tabular-nums text-highlight">
-            {formatMoney(product.price)}
+          <div className="flex flex-wrap items-baseline gap-x-2 pt-0.5 tabular-nums">
+            <span className={off !== null ? "font-semibold text-destructive" : "font-semibold text-highlight"}>
+              {formatMoney(product.price)}
+            </span>
+            {off !== null && (
+              <s className="text-sm text-muted-foreground" aria-label={t.product.wasPrice}>
+                {formatMoney(product.compare_at_price!)}
+              </s>
+            )}
           </div>
         </div>
       </Link>

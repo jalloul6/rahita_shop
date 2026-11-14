@@ -1,0 +1,52 @@
+"use server";
+
+import { revalidatePath, updateTag } from "next/cache";
+import { z } from "zod";
+import { getAdminClient } from "@/lib/supabase/guard";
+import { settingsSchema } from "@/lib/validators";
+
+export type SettingsState = { error?: string; success?: string; fieldErrors?: Partial<Record<string, string[]>> };
+
+const TEXT_FIELDS = [
+  "whatsapp_number",
+  "whish_number",
+  "instagram_url",
+  "copyright_en",
+  "copyright_ar",
+  "announcement_en",
+  "announcement_ar",
+  "hero_image_url",
+  "hero_title_en",
+  "hero_title_ar",
+  "hero_text_en",
+  "hero_text_ar",
+  "hero_cta_en",
+  "hero_cta_ar",
+  "hero_cta_url",
+] as const;
+
+export async function saveSettings(_prev: SettingsState, formData: FormData): Promise<SettingsState> {
+  const supabase = await getAdminClient();
+  if (!supabase) return { error: "Not authorized. Please sign in again." };
+
+  const raw: Record<string, unknown> = { announcement_enabled: formData.get("announcement_enabled") === "on" };
+  for (const f of TEXT_FIELDS) raw[f] = String(formData.get(f) ?? "");
+
+  const parsed = settingsSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: "Please fix the highlighted fields.", fieldErrors: z.flattenError(parsed.error).fieldErrors };
+  }
+
+  const { error } = await supabase.from("shop_settings").upsert({ id: 1, ...parsed.data });
+  if (error) {
+    return {
+      error: /column|schema cache/i.test(error.message)
+        ? "Run supabase/migrations/006_cms_customers_multi_exchange.sql in Supabase first."
+        : error.message,
+    };
+  }
+
+  updateTag("settings"); // storefront re-reads settings on the next request
+  revalidatePath("/admin/settings");
+  return { success: "Settings saved. The store is updated." };
+}

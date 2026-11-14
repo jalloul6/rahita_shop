@@ -70,8 +70,9 @@ export type ReturnInput = {
   orderId: string;
   items: { order_item_id: string; quantity: number }[];
   restock: boolean;
-  refundAmount: number;
+  refundAmount: number; // items part; the shipping fee is added by the database when refundShipping is set
   reason: string;
+  refundShipping: boolean;
 };
 
 // Return / Refund: partial or full. Quantities, refund cap and restocking are enforced in process_return().
@@ -90,11 +91,12 @@ export async function processReturn(input: ReturnInput): Promise<StatusState> {
     p_restock: Boolean(input.restock),
     p_refund_amount: refund,
     p_reason: input.reason?.trim() || null,
+    p_refund_shipping: Boolean(input.refundShipping),
   });
   if (error) {
     return {
       error: error.message.includes("process_return")
-        ? "Run supabase/migrations/004_manual_orders_returns.sql in Supabase first."
+        ? "Run supabase/migrations/006_cms_customers_multi_exchange.sql in Supabase first."
         : error.message,
     };
   }
@@ -103,4 +105,55 @@ export async function processReturn(input: ReturnInput): Promise<StatusState> {
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${input.orderId}`);
   return { success: "Return recorded." };
+}
+
+export type ExchangeInput = {
+  orderId: string;
+  returns: { order_item_id: string; quantity: number; restock: boolean; reason: string }[];
+  newItems: { product_id: string; quantity: number }[];
+  refundShipping: boolean;
+  note: string;
+};
+
+// Multi-item exchange: several returned lines (each with its own restock + reason) for several
+// new products. Stock, price difference, shipping refund and the order total are updated together
+// in process_exchange_multi().
+export async function processExchange(input: ExchangeInput): Promise<StatusState> {
+  const supabase = await getAdminClient();
+  if (!supabase) return { error: "Not authorized. Please sign in again." };
+
+  const returns = (input.returns ?? [])
+    .filter((r) => Number.isInteger(r.quantity) && r.quantity > 0)
+    .map((r) => ({ order_item_id: r.order_item_id, quantity: r.quantity, restock: Boolean(r.restock), reason: r.reason?.trim().slice(0, 300) || null }));
+  const newItems = (input.newItems ?? []).filter((n) => Number.isInteger(n.quantity) && n.quantity > 0);
+  if (returns.length === 0) return { error: "Choose at least one item the customer is returning." };
+  if (newItems.length === 0) return { error: "Add at least one replacement item." };
+
+  const { data, error } = await supabase.rpc("process_exchange_multi", {
+    p_order_id: input.orderId,
+    p_returns: returns,
+    p_new_items: newItems,
+    p_refund_shipping: Boolean(input.refundShipping),
+    p_note: input.note?.trim() || null,
+  });
+  if (error) {
+    return {
+      error: error.message.includes("process_exchange_multi")
+        ? "Run supabase/migrations/006_cms_customers_multi_exchange.sql in Supabase first."
+        : error.message,
+    };
+  }
+
+  updateTag("products"); // both products' stock changed
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${input.orderId}`);
+  const diff = Number(data?.price_difference ?? 0);
+  return {
+    success:
+      diff > 0
+        ? `Exchange recorded. Collect $${diff.toFixed(2)} from the customer.`
+        : diff < 0
+          ? `Exchange recorded. Refund $${Math.abs(diff).toFixed(2)} to the customer.`
+          : "Exchange recorded. No price difference.",
+  };
 }

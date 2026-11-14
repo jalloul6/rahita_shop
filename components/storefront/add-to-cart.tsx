@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Minus, Plus, ShoppingBag } from "lucide-react";
+import { Check, MessageCircle, Minus, Plus, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart/store";
 import type { StoreProduct } from "@/lib/data/storefront";
+import { formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
+import { SHOP_NAME } from "@/lib/shop";
+import { useShopContact } from "@/lib/shop-context";
 
 type Props = Pick<StoreProduct, "id" | "name" | "price" | "image_url" | "stock_quantity">;
 
@@ -55,6 +58,7 @@ export function QuickAdd({ product }: { product: Props }) {
 // Quantity stepper + button for the product page.
 export function AddToCart({ product }: { product: Props }) {
   const { t } = useI18n();
+  const { whatsappLink } = useShopContact();
   const add = useCart((s) => s.add);
   const [qty, setQty] = useState(1);
   const [added, flash] = useAddedFlash();
@@ -68,29 +72,48 @@ export function AddToCart({ product }: { product: Props }) {
     );
   }
 
+  function orderViaWhatsApp() {
+    const price =
+      qty > 1
+        ? `${formatMoney(product.price)} × ${qty} = ${formatMoney(product.price * qty)}`
+        : formatMoney(product.price);
+    const message = t.product.whatsappMessage(SHOP_NAME, product.name, qty, price, window.location.href);
+    window.open(whatsappLink(message), "_blank", "noopener,noreferrer");
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="inline-flex items-center rounded-lg border" dir="ltr">
-        <Button variant="ghost" size="icon" aria-label={t.product.decrease} onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1}>
-          <Minus className="size-4" />
-        </Button>
-        <span className="w-10 text-center tabular-nums" aria-live="polite">
-          {qty}
-        </span>
-        <Button variant="ghost" size="icon" aria-label={t.product.increase} onClick={() => setQty((q) => Math.min(max, q + 1))} disabled={qty >= max}>
-          <Plus className="size-4" />
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex items-center rounded-lg border" dir="ltr">
+          <Button variant="ghost" size="icon" aria-label={t.product.decrease} onClick={() => setQty((q) => Math.max(1, q - 1))} disabled={qty <= 1}>
+            <Minus className="size-4" />
+          </Button>
+          <span className="w-10 text-center tabular-nums" aria-live="polite">
+            {qty}
+          </span>
+          <Button variant="ghost" size="icon" aria-label={t.product.increase} onClick={() => setQty((q) => Math.min(max, q + 1))} disabled={qty >= max}>
+            <Plus className="size-4" />
+          </Button>
+        </div>
+        <Button
+          size="lg"
+          onClick={() => {
+            add(toItem(product), qty);
+            flash();
+          }}
+        >
+          {added ? <Check className="size-4" /> : <ShoppingBag className="size-4" />}
+          {added ? t.product.addedToCart : t.product.addToCart}
         </Button>
       </div>
-      <Button
-        size="lg"
-        onClick={() => {
-          add(toItem(product), qty);
-          flash();
-        }}
+      <button
+        type="button"
+        onClick={orderViaWhatsApp}
+        className="inline-flex h-11 items-center gap-2 rounded-lg border-2 border-[#25D366] px-5 text-sm font-semibold text-[#128C7E] transition-colors hover:bg-[#25D366] hover:text-white dark:text-[#25D366] dark:hover:text-white"
       >
-        {added ? <Check className="size-4" /> : <ShoppingBag className="size-4" />}
-        {added ? t.product.addedToCart : t.product.addToCart}
-      </Button>
+        <MessageCircle className="size-5" />
+        {t.product.whatsappOrder}
+      </button>
     </div>
   );
 }

@@ -7,17 +7,20 @@ import type { ProductFormState } from "@/lib/products";
 import { getAdminClient } from "@/lib/supabase/guard";
 import { productSchema } from "@/lib/validators";
 
-const FIELDS = ["name", "description", "price", "stock_quantity", "category", "image_url"] as const;
+const FIELDS = ["name", "description", "price", "compare_at_price", "stock_quantity", "category", "image_url"] as const;
+const CHECKBOXES = ["is_sponsored", "is_active", "is_on_offer"] as const;
 
 function readForm(formData: FormData) {
   const values: Record<string, string> = {};
   for (const f of FIELDS) values[f] = String(formData.get(f) ?? "");
-  const is_sponsored = formData.get("is_sponsored") === "on";
-  const is_active = formData.get("is_active") === "on";
+  const checks = Object.fromEntries(CHECKBOXES.map((c) => [c, formData.get(c) === "on"])) as Record<
+    (typeof CHECKBOXES)[number],
+    boolean
+  >;
   return {
     // values are echoed back to the form when validation fails
-    values: { ...values, is_sponsored: is_sponsored ? "on" : "", is_active: is_active ? "on" : "" },
-    raw: { ...values, is_sponsored, is_active },
+    values: { ...values, ...Object.fromEntries(CHECKBOXES.map((c) => [c, checks[c] ? "on" : ""])) },
+    raw: { ...values, ...checks },
   };
 }
 

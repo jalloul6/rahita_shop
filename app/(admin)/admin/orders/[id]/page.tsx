@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { ArrowLeft, Printer } from "lucide-react";
 import { PaymentActions } from "@/components/admin/payment-actions";
 import { PaymentBadge } from "@/components/admin/payment-badge";
+import { ExchangePanel } from "@/components/admin/exchange-panel";
 import { ReturnPanel } from "@/components/admin/return-panel";
 import { StatusActions } from "@/components/admin/status-actions";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -14,7 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getOrder } from "@/lib/data/orders";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { ORDER_SOURCE_LABELS, PAYMENT_METHOD_LABELS, amountToCollect, canReturn, orderRef } from "@/lib/orders";
+import { ORDER_SOURCE_LABELS, PAYMENT_METHOD_LABELS, amountToCollect, canReturn, exchangeMoney, orderRef } from "@/lib/orders";
+import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Order" };
@@ -32,6 +34,18 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
   const order = await getOrder(id);
   if (!order) notFound();
   const itemNames = new Map(order.order_items.map((i) => [i.id, i.product_name]));
+  const returnable = canReturn(order);
+  // Replacement candidates for Exchange Item: anything with stock, hidden products included.
+  const exchangeProducts = returnable
+    ? ((
+        await (await createClient())
+          .from("products")
+          .select("id, name, price, stock_quantity")
+          .gt("stock_quantity", 0)
+          .order("name")
+          .limit(1000)
+      ).data ?? [])
+    : [];
 
   return (
     <div className="space-y-6">
@@ -91,12 +105,84 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
         </CardContent>
       </Card>
 
-      {(canReturn(order) || order.order_returns.length > 0) && (
+      {(returnable ||
+        order.order_returns.length > 0 ||
+        order.order_exchanges.length > 0 ||
+        order.order_exchange_batches.length > 0) && (
         <Card>
           <CardHeader>
-            <CardTitle>Returns &amp; refunds</CardTitle>
+            <CardTitle>Returns, refunds &amp; exchanges</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
+            {order.order_exchange_batches.length > 0 && (
+              <ul className="space-y-3">
+                {[...order.order_exchange_batches]
+                  .sort((a, b) => a.created_at.localeCompare(b.created_at))
+                  .map((b) => (
+                    <li key={b.id} className="rounded-md border p-3 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-medium">Exchange · {formatDateTime(b.created_at)}</span>
+                        <span className="font-semibold tabular-nums">{exchangeMoney(b.price_difference)}</span>
+                      </div>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div>
+                          <div className="text-xs font-semibold text-muted-foreground uppercase">Returned</div>
+                          {b.order_exchange_lines
+                            .filter((l) => l.direction === "returned")
+                            .map((l) => (
+                              <div key={l.id}>
+                                {l.quantity} × {l.product_name}
+                                <span className="text-xs text-muted-foreground">
+                                  {" "}
+                                  · {l.restocked ? "restocked" : "not restocked"}
+                                  {l.reason ? ` · ${l.reason}` : ""}
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-muted-foreground uppercase">Given</div>
+                          {b.order_exchange_lines
+                            .filter((l) => l.direction === "new")
+                            .map((l) => (
+                              <div key={l.id}>
+                                {l.quantity} × {l.product_name}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                      {(b.shipping_refund > 0 || b.note) && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {b.shipping_refund > 0 && `Shipping refunded ${formatMoney(b.shipping_refund)}`}
+                          {b.shipping_refund > 0 && b.note ? " · " : ""}
+                          {b.note}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+              </ul>
+            )}
+            {order.order_exchanges.length > 0 && (
+              <ul className="space-y-3">
+                {[...order.order_exchanges]
+                  .sort((a, b) => a.created_at.localeCompare(b.created_at))
+                  .map((x) => (
+                    <li key={x.id} className="rounded-md border p-3 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-medium">Exchange · {formatDateTime(x.created_at)}</span>
+                        <span className="font-semibold tabular-nums">{exchangeMoney(x.price_difference)}</span>
+                      </div>
+                      <div className="mt-1 text-muted-foreground">
+                        {x.returned_quantity} × {x.returned_product_name} → {x.new_quantity} × {x.new_product_name}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {x.restocked ? "Returned item restocked" : "Returned item not restocked"}
+                        {x.reason ? ` · ${x.reason}` : ""}
+                      </div>
+                    </li>
+                  ))}
+              </ul>
+            )}
             {order.order_returns.length > 0 && (
               <ul className="space-y-3">
                 {[...order.order_returns]
@@ -116,19 +202,31 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
                       </ul>
                       <div className="mt-1 text-xs text-muted-foreground">
                         {r.restocked ? "Restocked" : "Not restocked (damaged)"}
+                        {r.shipping_refund > 0 ? ` · incl. shipping ${formatMoney(r.shipping_refund)}` : ""}
                         {r.reason ? ` · ${r.reason}` : ""}
                       </div>
                     </li>
                   ))}
               </ul>
             )}
-            {canReturn(order) && (
-              <ReturnPanel
-                orderId={order.id}
-                items={order.order_items}
-                maxRefund={Math.max(0, order.total_amount - order.refunded_amount)}
-                discountRatio={order.subtotal > 0 ? order.discount_amount / order.subtotal : 0}
-              />
+            {returnable && (
+              <div className="space-y-3">
+                <ReturnPanel
+                  orderId={order.id}
+                  items={order.order_items}
+                  maxRefund={Math.max(0, order.total_amount - order.refunded_amount)}
+                  discountRatio={order.subtotal > 0 ? order.discount_amount / order.subtotal : 0}
+                  shippingFee={order.shipping_fee}
+                  shippingRefunded={order.shipping_refunded}
+                />
+                <ExchangePanel
+                  orderId={order.id}
+                  items={order.order_items}
+                  products={exchangeProducts}
+                  shippingFee={order.shipping_fee}
+                  shippingRefunded={order.shipping_refunded}
+                />
+              </div>
             )}
           </CardContent>
         </Card>
@@ -190,8 +288,9 @@ async function OrderDetail({ params }: { params: PageProps<"/admin/orders/[id]">
                   <TableRow key={item.id}>
                     <TableCell>
                       {item.product_name}
+                      {item.from_exchange && <div className="text-xs text-muted-foreground">Added by exchange</div>}
                       {item.returned_quantity > 0 && (
-                        <div className="text-xs text-rose-700">{item.returned_quantity} returned</div>
+                        <div className="text-xs text-rose-700">{item.returned_quantity} returned / exchanged</div>
                       )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
