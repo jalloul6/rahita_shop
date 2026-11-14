@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Banknote, Camera, MessageCircle, PackageSearch, Smartphone, Truck } from "lucide-react";
 import { CartLink } from "@/components/storefront/cart-link";
 import { LanguageSwitcher } from "@/components/storefront/language-switcher";
@@ -9,10 +10,22 @@ import { I18nProvider } from "@/lib/i18n/client";
 import { dictionaries, dirOf } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/server";
 import { getColorMode } from "@/lib/preferences";
-import { pick, waLink } from "@/lib/settings";
+import { brandFor, pick, waLink } from "@/lib/settings";
 import { ShopContactProvider } from "@/lib/shop-context";
-import { SHOP_NAME, SHOP_PHONE } from "@/lib/shop";
+import { SHOP_PHONE } from "@/lib/shop";
 import { resolveTheme } from "@/lib/themes";
+
+// Browser tab title: "<page> | <store name>", with the name + tagline on the home page.
+// Reads the language cookie, which is fine here: the whole storefront renders at request time.
+export async function generateMetadata(): Promise<Metadata> {
+  const [settings, locale] = await Promise.all([getShopSettings(), getLocale()]);
+  const { name, tagline } = brandFor(settings, locale);
+  return {
+    title: { default: `${name} | ${tagline}`, template: `%s | ${name}` },
+    description: tagline,
+    applicationName: name,
+  };
+}
 
 // The language comes from a cookie (request-time data), so the whole storefront renders inside
 // this Suspense boundary. Catalog data stays cached through "use cache" in lib/data/storefront.
@@ -33,12 +46,13 @@ async function StoreShell({ children }: { children: React.ReactNode }) {
   // Visitor light/dark choice (header toggle) overrides the shop theme for this visitor only.
   const theme = resolveTheme(shopTheme, mode);
   const t = dictionaries[locale];
+  const brand = brandFor(settings, locale);
   const announcement = pick(settings.announcement, locale, t.header.announcement);
-  const copyright = pick(settings.copyright, locale, `© ${SHOP_NAME}. ${t.footer.rights}`);
+  const copyright = pick(settings.copyright, locale, `© ${brand.name}. ${t.footer.rights}`);
 
   return (
     <I18nProvider locale={locale}>
-      <ShopContactProvider value={{ whatsappNumber: settings.whatsappNumber, whishNumber: settings.whishNumber }}>
+      <ShopContactProvider value={{ whatsappNumber: settings.whatsappNumber, whishNumber: settings.whishNumber, shopName: brand.name }}>
       <div
         data-store-root=""
         data-theme={theme}
@@ -58,9 +72,9 @@ async function StoreShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4">
             <Link href="/" className="group flex min-w-0 flex-col leading-none">
-              <span className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">{SHOP_NAME}</span>
+              <span className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">{brand.name}</span>
               <span className="hidden text-[0.7rem] tracking-[0.2em] text-muted-foreground uppercase sm:block">
-                {t.tagline}
+                {brand.tagline}
               </span>
             </Link>
             <nav className="flex items-center gap-0.5 text-sm font-medium sm:gap-1">
@@ -97,7 +111,7 @@ async function StoreShell({ children }: { children: React.ReactNode }) {
         <footer className="mt-12 border-t bg-muted/40">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
             <div className="space-y-2">
-              <div className="font-heading text-lg font-semibold">{SHOP_NAME}</div>
+              <div className="font-heading text-lg font-semibold">{brand.name}</div>
               <p className="text-sm text-muted-foreground">{t.footer.blurb}</p>
               {SHOP_PHONE && (
                 <p className="text-sm text-muted-foreground" dir="ltr">

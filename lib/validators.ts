@@ -56,6 +56,10 @@ const optionalPhone = z
 
 // /admin/settings: contact & payment numbers, announcement bar, hero banner (EN + AR)
 export const settingsSchema = z.object({
+  store_name_en: optionalText(60),
+  store_name_ar: optionalText(60),
+  tagline_en: optionalText(80),
+  tagline_ar: optionalText(80),
   whatsapp_number: optionalPhone,
   whish_number: optionalPhone,
   instagram_url: z

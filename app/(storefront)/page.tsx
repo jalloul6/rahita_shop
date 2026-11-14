@@ -12,8 +12,7 @@ import {
 } from "@/lib/data/storefront";
 import { dictionaries, type Dictionary } from "@/lib/i18n/dictionaries";
 import { getLocale } from "@/lib/i18n/server";
-import { pick } from "@/lib/settings";
-import { SHOP_NAME } from "@/lib/shop";
+import { brandFor, pick } from "@/lib/settings";
 import { cn } from "@/lib/utils";
 
 const PERK_ICONS = [Banknote, Smartphone, Truck, Gift];
@@ -21,6 +20,7 @@ const PERK_ICONS = [Banknote, Smartphone, Truck, Gift];
 export default async function HomePage() {
   const [locale, settings] = await Promise.all([getLocale(), getShopSettings()]);
   const t = dictionaries[locale];
+  const brand = brandFor(settings, locale);
   const hero = settings.hero;
   // An uploaded cover photo gets a dark overlay so the text stays readable on any image.
   const withImage = Boolean(hero.imageUrl);
@@ -47,11 +47,11 @@ export default async function HomePage() {
           </>
         )}
 
-        <p className="text-xs font-semibold tracking-[0.25em] uppercase opacity-80 sm:text-sm">{t.tagline}</p>
+        <p className="text-xs font-semibold tracking-[0.25em] uppercase opacity-80 sm:text-sm">{brand.tagline}</p>
         <h1 className="mt-4 max-w-2xl font-heading text-4xl leading-[1.15] font-semibold tracking-tight sm:text-6xl">
           {pick(hero.title, locale, t.home.heroTitle)}
         </h1>
-        <p className="mt-5 max-w-lg text-base opacity-85 sm:text-lg">{pick(hero.text, locale, t.home.heroText(SHOP_NAME))}</p>
+        <p className="mt-5 max-w-lg text-base opacity-85 sm:text-lg">{pick(hero.text, locale, t.home.heroText(brand.name))}</p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
             href={hero.ctaUrl}

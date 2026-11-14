@@ -1,6 +1,9 @@
-// Shop settings. Printed on receipts and shown at checkout. Edit here or override with env vars.
+// Built-in shop defaults. The store name and tagline can be changed (EN/AR) in /admin/settings;
+// these are only the fallbacks used when those fields are empty.
 export const SHOP_NAME = "Rahita";
+export const SHOP_NAME_AR = "رحيتا";
 export const SHOP_TAGLINE = "Perfumes & Gifts";
+export const SHOP_TAGLINE_AR = "عطور وهدايا";
 // IANA timezone that defines "today" / "this month" on the admin dashboard.
 export const SHOP_TIMEZONE = "Asia/Beirut";
 export const SHOP_PHONE = ""; // e.g. "+961 70 000 000"; leave empty to hide

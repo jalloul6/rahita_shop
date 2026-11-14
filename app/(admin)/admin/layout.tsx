@@ -7,12 +7,16 @@ import { Button } from "@/components/ui/button";
 import { AdminI18nProvider } from "@/lib/i18n/admin-client";
 import { adminDictionaries } from "@/lib/i18n/admin";
 import { getAdminLocale } from "@/lib/i18n/admin-server";
+import { getShopSettings } from "@/lib/data/storefront";
+import { brandFor } from "@/lib/settings";
 import { signOut } from "./actions";
 
-export const metadata: Metadata = {
-  title: { default: "Admin", template: "%s | Rahita Admin" },
-  robots: { index: false, follow: false },
-};
+// Tab title "<page> | <store name> Admin", using the store name from /admin/settings.
+export async function generateMetadata(): Promise<Metadata> {
+  const [settings, locale] = await Promise.all([getShopSettings(), getAdminLocale()]);
+  const brand = adminDictionaries[locale].brand(brandFor(settings, locale).name);
+  return { title: { default: brand, template: `%s | ${brand}` }, robots: { index: false, follow: false } };
+}
 
 // Access is enforced in proxy.ts (session + is_admin) and again in each action/route handler.
 // The dashboard language comes from the admin_lang cookie (request-time data), so the shell
@@ -26,8 +30,9 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
 }
 
 async function AdminShell({ children }: { children: React.ReactNode }) {
-  const locale = await getAdminLocale();
+  const [locale, settings] = await Promise.all([getAdminLocale(), getShopSettings()]);
   const t = adminDictionaries[locale];
+  const shopName = brandFor(settings, locale).name;
 
   return (
     <AdminI18nProvider locale={locale}>
@@ -39,7 +44,7 @@ async function AdminShell({ children }: { children: React.ReactNode }) {
       >
         <aside className="border-b bg-card md:w-60 md:shrink-0 md:border-e md:border-b-0 print:hidden">
           <div className="flex items-center justify-between gap-2 px-4 py-3 md:block md:space-y-3 md:py-5">
-            <span className="text-lg font-semibold tracking-tight md:block">{t.brand}</span>
+            <span className="text-lg font-semibold tracking-tight md:block">{t.brand(shopName)}</span>
             <div className="flex items-center gap-1 md:hidden">
               <AdminLanguageSwitcher />
               <form action={signOut}>

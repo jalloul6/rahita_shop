@@ -59,6 +59,10 @@ export type ShopSettings = {
   hero_cta_en: string | null;
   hero_cta_ar: string | null;
   hero_cta_url: string | null;
+  store_name_en: string | null;
+  store_name_ar: string | null;
+  tagline_en: string | null;
+  tagline_ar: string | null;
   updated_at: string;
 };
 

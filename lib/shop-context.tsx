@@ -1,14 +1,15 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { WHATSAPP_NUMBER, WHISH_NUMBER } from "@/lib/shop";
+import { SHOP_NAME, WHATSAPP_NUMBER, WHISH_NUMBER } from "@/lib/shop";
 import { waLink } from "@/lib/settings";
 
-type ShopContact = { whatsappNumber: string; whishNumber: string };
+type ShopContact = { whatsappNumber: string; whishNumber: string; shopName: string };
 
-const ShopContactContext = createContext<ShopContact>({ whatsappNumber: WHATSAPP_NUMBER, whishNumber: WHISH_NUMBER });
+const ShopContactContext = createContext<ShopContact>({ whatsappNumber: WHATSAPP_NUMBER, whishNumber: WHISH_NUMBER, shopName: SHOP_NAME });
 
-// Contact / payment numbers from /admin/settings, for storefront client components.
+// Store name (current language) and contact / payment numbers from /admin/settings,
+// for storefront client components.
 export function ShopContactProvider({ value, children }: { value: ShopContact; children: React.ReactNode }) {
   return <ShopContactContext value={value}>{children}</ShopContactContext>;
 }

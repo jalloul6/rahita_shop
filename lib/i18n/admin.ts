@@ -10,7 +10,7 @@ const money = (n: number) => `$${Math.abs(n).toFixed(2)}`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 const en = {
-  brand: "Rahita Admin",
+  brand: (name: string) => `${name} Admin`,
   common: {
     loading: "Loading…",
     saving: "Saving…",
@@ -432,6 +432,10 @@ const en = {
     title: "Settings",
     subtitle: "Store contact numbers, the announcement bar and the home page banner, in English and Arabic. The theme is in Appearance.",
     readError: (msg: string) => `Couldn't read settings (${msg}). Run the latest Supabase migrations.`,
+    branding: "Store name & tagline",
+    brandingHint: "Shown in the store header, the browser tab, receipts and the order tracking page. Leave empty to use the defaults.",
+    storeName: "Store name",
+    tagline: "Tagline (under the name)",
     contact: "Contact & payments",
     contactHint: "Used across the store, WhatsApp buttons and the Whish Money checkout box.",
     whatsapp: "WhatsApp number (orders & receipts)",
@@ -524,7 +528,7 @@ export type AdminDict = typeof en;
 const arMoney = money;
 
 const ar: AdminDict = {
-  brand: "إدارة رحيتا",
+  brand: (name: string) => `إدارة ${name}`,
   common: {
     loading: "جارٍ التحميل…",
     saving: "جارٍ الحفظ…",
@@ -946,6 +950,10 @@ const ar: AdminDict = {
     title: "الإعدادات",
     subtitle: "أرقام التواصل، شريط الإعلان، وبانر الصفحة الرئيسية بالعربية والإنجليزية. الثيم موجود في صفحة المظهر.",
     readError: (msg: string) => `تعذّرت قراءة الإعدادات (${msg}). شغّل آخر ملفات الترحيل في Supabase.`,
+    branding: "اسم المتجر والشعار",
+    brandingHint: "يظهر في رأس المتجر وعنوان تبويب المتصفح والإيصالات وصفحة تتبّع الطلب. اتركه فارغاً لاستخدام القيم الافتراضية.",
+    storeName: "اسم المتجر",
+    tagline: "الشعار الفرعي (تحت الاسم)",
     contact: "التواصل والدفع",
     contactHint: "تُستخدم في المتجر وأزرار واتساب وصندوق Whish Money عند الدفع.",
     whatsapp: "رقم واتساب (الطلبات والإيصالات)",

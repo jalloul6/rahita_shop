@@ -7,7 +7,6 @@ import { useCart } from "@/lib/cart/store";
 import type { StoreProduct } from "@/lib/data/storefront";
 import { formatMoney } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
-import { SHOP_NAME } from "@/lib/shop";
 import { useShopContact } from "@/lib/shop-context";
 
 type Props = Pick<StoreProduct, "id" | "name" | "price" | "image_url" | "stock_quantity">;
@@ -58,7 +57,7 @@ export function QuickAdd({ product }: { product: Props }) {
 // Quantity stepper + button for the product page.
 export function AddToCart({ product }: { product: Props }) {
   const { t } = useI18n();
-  const { whatsappLink } = useShopContact();
+  const { whatsappLink, shopName } = useShopContact();
   const add = useCart((s) => s.add);
   const [qty, setQty] = useState(1);
   const [added, flash] = useAddedFlash();
@@ -77,7 +76,7 @@ export function AddToCart({ product }: { product: Props }) {
       qty > 1
         ? `${formatMoney(product.price)} × ${qty} = ${formatMoney(product.price * qty)}`
         : formatMoney(product.price);
-    const message = t.product.whatsappMessage(SHOP_NAME, product.name, qty, price, window.location.href);
+    const message = t.product.whatsappMessage(shopName, product.name, qty, price, window.location.href);
     window.open(whatsappLink(message), "_blank", "noopener,noreferrer");
   }
 

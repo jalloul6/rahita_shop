@@ -42,6 +42,11 @@ export function SettingsForm({ initial }: { initial: Values }) {
     <form action={action} className="space-y-8">
       <input type="hidden" name="hero_image_url" value={heroImage} />
 
+      <Section title={s.branding} hint={s.brandingHint}>
+        <Bilingual label={s.storeName} name="store_name" initial={initial} err={err} placeholder={{ en: "Rahita", ar: "رحيتا" }} />
+        <Bilingual label={s.tagline} name="tagline" initial={initial} err={err} placeholder={{ en: "Perfumes & Gifts", ar: "عطور وهدايا" }} />
+      </Section>
+
       <Section title={s.contact} hint={s.contactHint}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={s.whatsapp} id="whatsapp_number" error={err("whatsapp_number")}>

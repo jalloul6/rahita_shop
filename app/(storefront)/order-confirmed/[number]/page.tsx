@@ -7,11 +7,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { ClearCart } from "@/components/storefront/clear-cart";
 import { CopyButton } from "@/components/storefront/copy-button";
 import { CURRENCY, formatMoney } from "@/lib/format";
-import { getDictionary } from "@/lib/i18n/server";
+import { getDictionary, getLocale } from "@/lib/i18n/server";
 import { isOrderRef } from "@/lib/orders";
 import { getShopSettings } from "@/lib/data/storefront";
-import { waLink } from "@/lib/settings";
-import { SHOP_NAME } from "@/lib/shop";
+import { brandFor, waLink } from "@/lib/settings";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Order received", robots: { index: false } };
@@ -27,7 +26,13 @@ export default function OrderConfirmedPage(props: Props) {
 }
 
 async function Confirmation({ params, searchParams }: { params: Props["params"]; searchParams: Props["searchParams"] }) {
-  const [{ number }, query, t, settings] = await Promise.all([params, searchParams, getDictionary(), getShopSettings()]);
+  const [{ number }, query, t, settings, locale] = await Promise.all([
+    params,
+    searchParams,
+    getDictionary(),
+    getShopSettings(),
+    getLocale(),
+  ]);
   // The segment carries the customer-facing reference (e.g. RH-1042), never the raw sequence number.
   const ref = decodeURIComponent(number);
   const valid = isOrderRef(ref);
@@ -75,7 +80,7 @@ async function Confirmation({ params, searchParams }: { params: Props["params"];
           <div className="space-y-2">
             <div className="text-sm text-muted-foreground">{t.confirm.step2}</div>
             <a
-              href={waLink(settings.whatsappNumber, t.confirm.whatsapp(SHOP_NAME, ref, totalText))}
+              href={waLink(settings.whatsappNumber, t.confirm.whatsapp(brandFor(settings, locale).name, ref, totalText))}
               target="_blank"
               rel="noopener noreferrer"
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-[#1ebe5b]"

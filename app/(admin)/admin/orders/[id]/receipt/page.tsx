@@ -4,7 +4,10 @@ import type { Metadata } from "next";
 import { PrintButton } from "@/components/admin/print-button";
 import { getOrder } from "@/lib/data/orders";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { SHOP_NAME, SHOP_PHONE, SHOP_TAGLINE } from "@/lib/shop";
+import { SHOP_PHONE } from "@/lib/shop";
+import { getShopSettings } from "@/lib/data/storefront";
+import { getAdminLocale } from "@/lib/i18n/admin-server";
+import { brandFor } from "@/lib/settings";
 import { orderRef } from "@/lib/orders";
 import { getAdminT } from "@/lib/i18n/admin-server";
 
@@ -22,7 +25,8 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
   const { id } = await params;
   const order = await getOrder(id);
   if (!order) notFound();
-  const t = await getAdminT();
+  const [t, locale, settings] = await Promise.all([getAdminT(), getAdminLocale(), getShopSettings()]);
+  const brand = brandFor(settings, locale);
   const r = t.receipt;
   const exchangeMoney = t.exchangeMoney;
   const inStore = order.order_source === "in_store";
@@ -44,8 +48,8 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
       <article className="space-y-5 rounded-lg border-2 border-black bg-white p-6 text-black print:rounded-none print:border-2">
         <header className="flex items-start justify-between gap-4 border-b-2 border-black pb-4">
           <div>
-            <div className="text-2xl font-bold">{SHOP_NAME}</div>
-            <div className="text-sm">{SHOP_TAGLINE}</div>
+            <div className="text-2xl font-bold">{brand.name}</div>
+            <div className="text-sm">{brand.tagline}</div>
             {SHOP_PHONE && <div className="text-sm">{SHOP_PHONE}</div>}
           </div>
           <div className="text-end">
@@ -249,7 +253,7 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
 
         <footer className="flex justify-between border-t border-black pt-3 text-xs">
           <span>{r.statusLine(t.status[order.status])}</span>
-          <span>{r.thanks(SHOP_NAME)}</span>
+          <span>{r.thanks(brand.name)}</span>
         </footer>
       </article>
     </div>
