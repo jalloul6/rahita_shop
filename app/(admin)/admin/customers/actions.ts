@@ -2,15 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { getAdminClient } from "@/lib/supabase/guard";
+import { getAdminT } from "@/lib/i18n/admin-server";
 
 export type NoteState = { error?: string; success?: string };
 
 export async function saveCustomerNote(_prev: NoteState, formData: FormData): Promise<NoteState> {
+  const t = await getAdminT();
   const supabase = await getAdminClient();
-  if (!supabase) return { error: "Not authorized. Please sign in again." };
+  if (!supabase) return { error: t.msg.notAuthorized };
 
   const key = String(formData.get("phone_key") ?? "");
-  if (!/^\d{7,8}$/.test(key)) return { error: "Invalid customer." };
+  if (!/^\d{7,8}$/.test(key)) return { error: t.msg.invalidCustomer };
   const note = String(formData.get("note") ?? "").slice(0, 5000);
 
   const { error } = await supabase
@@ -19,11 +21,11 @@ export async function saveCustomerNote(_prev: NoteState, formData: FormData): Pr
   if (error) {
     return {
       error: error.message.includes("customer_notes")
-        ? "Run supabase/migrations/006_cms_customers_multi_exchange.sql in Supabase first."
+        ? t.msg.runMigration("006_cms_customers_multi_exchange.sql")
         : error.message,
     };
   }
 
   revalidatePath(`/admin/customers/${key}`);
-  return { success: "Note saved." };
+  return { success: t.msg.noteSaved };
 }

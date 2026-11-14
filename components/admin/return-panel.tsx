@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { processReturn } from "@/app/(admin)/admin/orders/actions";
 import { ShippingToggle } from "@/components/admin/exchange-panel";
 import { formatMoney } from "@/lib/format";
+import { useAdminT } from "@/lib/i18n/admin-client";
 
 type Item = { id: string; product_name: string; quantity: number; returned_quantity: number; unit_price: number };
 
@@ -27,6 +28,8 @@ export function ReturnPanel({
   shippingFee: number;
   shippingRefunded: boolean;
 }) {
+  const { t } = useAdminT();
+  const r = t.returns;
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [restock, setRestock] = useState(true);
@@ -55,13 +58,11 @@ export function ReturnPanel({
 
   function submit() {
     setMessage({});
-    if (selected === 0) return setMessage({ error: "Choose at least one item to return." });
+    if (selected === 0) return setMessage({ error: r.chooseItem });
     if (refundValue < 0 || totalRefund > maxRefund) {
-      return setMessage({ error: `Total refund must be between ${formatMoney(0)} and ${formatMoney(maxRefund)}.` });
+      return setMessage({ error: r.rangeError(formatMoney(maxRefund)) });
     }
-    const confirmText = `Return ${selected} item(s) and refund ${formatMoney(totalRefund)}${shipping > 0 ? " (incl. shipping)" : ""}?${
-      restock ? " Items go back into stock." : " Items will NOT be restocked."
-    } This cannot be undone.`;
+    const confirmText = r.confirm(selected, formatMoney(totalRefund), shipping > 0, restock);
     if (!window.confirm(confirmText)) return;
 
     start(async () => {
@@ -91,7 +92,7 @@ export function ReturnPanel({
       <div className="space-y-2">
         <Button type="button" variant="outline" onClick={() => setOpen(true)}>
           <RotateCcw className="size-4" />
-          Return / Refund
+          {r.button}
         </Button>
         {message.success && <p className="text-sm text-green-700">{message.success}</p>}
       </div>
@@ -101,14 +102,14 @@ export function ReturnPanel({
   return (
     <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-medium">Return / Refund</h3>
+        <h3 className="font-medium">{r.title}</h3>
         <Button
           type="button"
           variant="ghost"
           size="sm"
           onClick={() => setQty(Object.fromEntries(returnable.map((i) => [i.id, i.quantity - i.returned_quantity])))}
         >
-          Return everything
+          {r.everything}
         </Button>
       </div>
 
@@ -121,18 +122,17 @@ export function ReturnPanel({
               <div className="min-w-0 flex-1">
                 <div className="font-medium">{i.product_name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {formatMoney(i.unit_price)} each · {i.quantity} sold
-                  {i.returned_quantity > 0 && ` · ${i.returned_quantity} already returned`}
+                  {r.soldLine(formatMoney(i.unit_price), i.quantity, i.returned_quantity)}
                 </div>
               </div>
               <div className="inline-flex items-center rounded-lg border bg-background">
-                <Button type="button" variant="ghost" size="icon-sm" aria-label="Fewer" disabled={value <= 0} onClick={() => set(i.id, value - 1, max)}>
+                <Button type="button" variant="ghost" size="icon-sm" aria-label={r.fewer} disabled={value <= 0} onClick={() => set(i.id, value - 1, max)}>
                   <Minus className="size-4" />
                 </Button>
                 <span className="w-10 text-center tabular-nums">
                   {value}/{max}
                 </span>
-                <Button type="button" variant="ghost" size="icon-sm" aria-label="More" disabled={value >= max} onClick={() => set(i.id, value + 1, max)}>
+                <Button type="button" variant="ghost" size="icon-sm" aria-label={r.more} disabled={value >= max} onClick={() => set(i.id, value + 1, max)}>
                   <Plus className="size-4" />
                 </Button>
               </div>
@@ -149,8 +149,8 @@ export function ReturnPanel({
           className="mt-0.5 size-4 accent-primary"
         />
         <span>
-          <span className="block font-medium">Restock returned items</span>
-          <span className="block text-xs text-muted-foreground">Untick if the items are damaged and can&apos;t be sold again.</span>
+          <span className="block font-medium">{r.restock}</span>
+          <span className="block text-xs text-muted-foreground">{r.restockHint}</span>
         </span>
       </label>
 
@@ -158,7 +158,7 @@ export function ReturnPanel({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="refund-amount">Items refund ($)</Label>
+          <Label htmlFor="refund-amount">{r.itemsRefund}</Label>
           <Input
             id="refund-amount"
             inputMode="decimal"
@@ -166,13 +166,13 @@ export function ReturnPanel({
             onChange={(e) => setRefund(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            Suggested from returned items (after discount). Max {formatMoney(itemsMax)}.
-            {shipping > 0 && ` Plus shipping ${formatMoney(shipping)} = ${formatMoney(totalRefund)} total.`}
+            {r.suggestion(formatMoney(itemsMax))}
+            {shipping > 0 && r.plusShipping(formatMoney(shipping), formatMoney(totalRefund))}
           </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="return-reason">
-            Reason <span className="text-muted-foreground">(optional)</span>
+            {r.reason} <span className="text-muted-foreground">{t.common.optional}</span>
           </Label>
           <Textarea id="return-reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
         </div>
@@ -186,10 +186,10 @@ export function ReturnPanel({
 
       <div className="flex gap-2">
         <Button type="button" onClick={submit} disabled={pending || selected === 0}>
-          {pending ? "Saving…" : `Confirm return · refund ${formatMoney(totalRefund)}`}
+          {pending ? t.common.saving : r.submit(formatMoney(totalRefund))}
         </Button>
         <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
-          Cancel
+          {t.common.cancel}
         </Button>
       </div>
     </div>

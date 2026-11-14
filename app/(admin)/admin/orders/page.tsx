@@ -7,7 +7,9 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { ORDER_SOURCE_LABELS, ORDER_STATUSES, isOrderStatus, orderRef } from "@/lib/orders";
+import { ORDER_STATUSES, isOrderStatus, orderRef } from "@/lib/orders";
+import { getAdminT } from "@/lib/i18n/admin-server";
+import type { AdminDict } from "@/lib/i18n/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
@@ -17,27 +19,36 @@ const PAGE_LIMIT = 200;
 
 export default function OrdersPage(props: PageProps<"/admin/orders">) {
   return (
+    <Suspense fallback={<p className="text-sm text-muted-foreground">…</p>}>
+      <Orders searchParams={props.searchParams} />
+    </Suspense>
+  );
+}
+
+async function Orders({ searchParams }: { searchParams: PageProps<"/admin/orders">["searchParams"] }) {
+  const t = await getAdminT();
+  return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
-          <p className="text-sm text-muted-foreground">All customer orders, newest first.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.orders.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.orders.subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/admin/orders/new" className={cn(buttonVariants({ variant: "default" }))}>
             <Plus className="size-4" />
-            New Order
+            {t.nav.newOrder}
           </Link>
           {/* Plain link: the response is a file download, not a page navigation */}
           <a href="/admin/api/manifest" download className={cn(buttonVariants({ variant: "outline" }))}>
             <Download className="size-4" />
-            Export Daily Manifest
+            {t.orders.exportManifest}
           </a>
         </div>
       </div>
 
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading orders…</p>}>
-        <OrdersView searchParams={props.searchParams} />
+      <Suspense fallback={<p className="text-sm text-muted-foreground">{t.orders.loading}</p>}>
+        <OrdersView searchParams={searchParams} t={t} />
       </Suspense>
     </div>
   );
@@ -45,8 +56,10 @@ export default function OrdersPage(props: PageProps<"/admin/orders">) {
 
 async function OrdersView({
   searchParams,
+  t,
 }: {
   searchParams: PageProps<"/admin/orders">["searchParams"];
+  t: AdminDict;
 }) {
   const params = await searchParams;
   const raw = Array.isArray(params.status) ? params.status[0] : params.status;
@@ -66,41 +79,41 @@ async function OrdersView({
 
   return (
     <>
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by status">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label={t.orders.filterAria}>
         <FilterLink href="/admin/orders" active={!status}>
-          All
+          {t.orders.all}
         </FilterLink>
         {ORDER_STATUSES.map((s) => (
           <FilterLink key={s.value} href={`/admin/orders?status=${s.value}`} active={status === s.value}>
-            {s.label}
+            {t.status[s.value]}
           </FilterLink>
         ))}
       </div>
 
       {error ? (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Could not load orders: {error.message}
+          {t.common.couldNotLoad(t.orders.what, error.message)}
         </p>
       ) : (
         <div className="rounded-lg border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Zone</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead>{t.common.order}</TableHead>
+                <TableHead>{t.common.customer}</TableHead>
+                <TableHead>{t.common.phone}</TableHead>
+                <TableHead>{t.common.zone}</TableHead>
+                <TableHead>{t.common.status}</TableHead>
+                <TableHead>{t.common.payment}</TableHead>
+                <TableHead className="text-end">{t.common.total}</TableHead>
+                <TableHead>{t.common.date}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                    No orders{status ? " with this status" : " yet"}.
+                    {status ? t.orders.noneWithStatus : t.orders.noneYet}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -114,7 +127,7 @@ async function OrdersView({
                     <TableCell>
                       <div>{o.customer_name}</div>
                       {o.order_source !== "online" && (
-                        <div className="text-xs text-muted-foreground">{ORDER_SOURCE_LABELS[o.order_source]}</div>
+                        <div className="text-xs text-muted-foreground">{t.source[o.order_source]}</div>
                       )}
                     </TableCell>
                     <TableCell>
@@ -128,10 +141,10 @@ async function OrdersView({
                     <TableCell>
                       <PaymentBadge method={o.payment_method} status={o.payment_status} />
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="text-end tabular-nums">
                       {formatMoney(o.total_amount)}
                       {o.refunded_amount > 0 && (
-                        <div className="text-xs text-rose-700">−{formatMoney(o.refunded_amount)} refunded</div>
+                        <div className="text-xs text-rose-700">{t.common.refundedSuffix(formatMoney(o.refunded_amount))}</div>
                       )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
@@ -145,7 +158,7 @@ async function OrdersView({
         </div>
       )}
       {orders && orders.length === PAGE_LIMIT && (
-        <p className="text-xs text-muted-foreground">Showing the latest {PAGE_LIMIT} orders.</p>
+        <p className="text-xs text-muted-foreground">{t.orders.showingLatest(PAGE_LIMIT)}</p>
       )}
     </>
   );

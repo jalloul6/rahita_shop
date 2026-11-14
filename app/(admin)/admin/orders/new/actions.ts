@@ -4,6 +4,8 @@ import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getAdminClient } from "@/lib/supabase/guard";
+import { getAdminT } from "@/lib/i18n/admin-server";
+import { issuesMessage } from "@/lib/i18n/admin";
 import type { CustomerRow, DiscountType } from "@/types/database";
 
 const inputSchema = z.object({
@@ -28,11 +30,12 @@ export type ManualOrderInput = z.input<typeof inputSchema>;
 // Creates the order through admin_create_order() (prices, stock and discounts are computed in
 // the database), then opens its receipt. Returns an error message instead when anything fails.
 export async function createManualOrder(input: ManualOrderInput): Promise<{ error: string }> {
+  const t = await getAdminT();
   const supabase = await getAdminClient();
-  if (!supabase) return { error: "Not authorized. Please sign in again." };
+  if (!supabase) return { error: t.msg.notAuthorized };
 
   const parsed = inputSchema.safeParse(input);
-  if (!parsed.success) return { error: z.prettifyError(parsed.error) };
+  if (!parsed.success) return { error: issuesMessage(parsed.error.issues, t) };
   const d = parsed.data;
 
   const { data, error } = await supabase.rpc("admin_create_order", {
@@ -52,10 +55,10 @@ export async function createManualOrder(input: ManualOrderInput): Promise<{ erro
   if (error || !data?.[0]) {
     const msg = error?.message ?? "";
     if (msg.includes("admin_create_order")) {
-      return { error: "Run supabase/migrations/004_manual_orders_returns.sql in Supabase first." };
+      return { error: t.msg.runMigration("004_manual_orders_returns.sql") };
     }
-    if (msg.includes("Insufficient stock")) return { error: "Not enough stock for one of the products." };
-    return { error: msg || "Could not create the order." };
+    if (msg.includes("Insufficient stock")) return { error: t.msg.notEnoughStock };
+    return { error: msg || t.msg.createOrderFailed };
   }
 
   updateTag("products"); // stock changed
@@ -77,15 +80,16 @@ export type AdminPromoResult =
   | { ok: false; error: string };
 
 export async function checkAdminPromo(rawCode: string): Promise<AdminPromoResult> {
+  const t = await getAdminT();
   const supabase = await getAdminClient();
-  if (!supabase) return { ok: false, error: "Not authorized." };
+  if (!supabase) return { ok: false, error: t.msg.notAuthorized };
 
   const code = String(rawCode ?? "").trim().toUpperCase();
-  if (!/^[A-Z0-9_-]{3,30}$/.test(code)) return { ok: false, error: "Enter a valid code." };
+  if (!/^[A-Z0-9_-]{3,30}$/.test(code)) return { ok: false, error: t.msg.validCode };
 
   const { data, error } = await supabase.rpc("validate_promo_code", { p_code: code });
   if (error) return { ok: false, error: error.message };
   const promo = data?.[0];
-  if (!promo) return { ok: false, error: "Code is invalid or disabled." };
+  if (!promo) return { ok: false, error: t.msg.invalidCode };
   return { ok: true, code: promo.code, discount_type: promo.discount_type, discount_value: Number(promo.discount_value) };
 }

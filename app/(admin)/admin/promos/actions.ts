@@ -1,15 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { getAdminClient } from "@/lib/supabase/guard";
 import { promoSchema } from "@/lib/validators";
+import { getAdminT } from "@/lib/i18n/admin-server";
+import { issuesMessage } from "@/lib/i18n/admin";
 
 export type PromoState = { error?: string; success?: string };
 
 export async function createPromo(_prev: PromoState, formData: FormData): Promise<PromoState> {
+  const t = await getAdminT();
   const supabase = await getAdminClient();
-  if (!supabase) return { error: "Not authorized. Please sign in again." };
+  if (!supabase) return { error: t.msg.notAuthorized };
 
   const parsed = promoSchema.safeParse({
     code: String(formData.get("code") ?? ""),
@@ -17,13 +19,13 @@ export async function createPromo(_prev: PromoState, formData: FormData): Promis
     discount_value: String(formData.get("discount_value") ?? ""),
     is_active: formData.get("is_active") === "on",
   });
-  if (!parsed.success) return { error: z.prettifyError(parsed.error) };
+  if (!parsed.success) return { error: issuesMessage(parsed.error.issues, t) };
 
   const { error } = await supabase.from("promo_codes").insert(parsed.data);
-  if (error) return { error: error.code === "23505" ? "This code already exists." : error.message };
+  if (error) return { error: error.code === "23505" ? t.msg.codeExists : error.message };
 
   revalidatePath("/admin/promos");
-  return { success: `Code ${parsed.data.code} created.` };
+  return { success: t.msg.codeCreated(parsed.data.code) };
 }
 
 export async function setPromoActive(formData: FormData): Promise<void> {

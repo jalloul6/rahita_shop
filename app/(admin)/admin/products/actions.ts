@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { ProductFormState } from "@/lib/products";
 import { getAdminClient } from "@/lib/supabase/guard";
 import { productSchema } from "@/lib/validators";
+import { getAdminT } from "@/lib/i18n/admin-server";
 
 const FIELDS = ["name", "description", "price", "compare_at_price", "stock_quantity", "category", "image_url"] as const;
 const CHECKBOXES = ["is_sponsored", "is_active", "is_on_offer"] as const;
@@ -25,14 +26,15 @@ function readForm(formData: FormData) {
 }
 
 async function save(formData: FormData, id: string | null): Promise<ProductFormState> {
+  const t = await getAdminT();
   const supabase = await getAdminClient();
-  if (!supabase) return { error: "Not authorized. Please sign in again." };
+  if (!supabase) return { error: t.msg.notAuthorized };
 
   const { values, raw } = readForm(formData);
   const parsed = productSchema.safeParse(raw);
   if (!parsed.success) {
     return {
-      error: "Please fix the highlighted fields.",
+      error: t.msg.fixFields,
       fieldErrors: z.flattenError(parsed.error).fieldErrors,
       values,
     };
@@ -55,13 +57,14 @@ export async function createProduct(_prev: ProductFormState, formData: FormData)
 
 export async function updateProduct(_prev: ProductFormState, formData: FormData) {
   const id = String(formData.get("id") ?? "");
-  if (!id) return { error: "Missing product id." };
+  if (!id) return { error: (await getAdminT()).msg.missingId };
   return save(formData, id);
 }
 
 export async function deleteProduct(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
+  const t = await getAdminT();
   const supabase = await getAdminClient();
-  if (!supabase) return { error: "Not authorized. Please sign in again." };
+  if (!supabase) return { error: t.msg.notAuthorized };
 
   const id = String(formData.get("id") ?? "");
   const { error } = await supabase.from("products").delete().eq("id", id);
@@ -70,7 +73,7 @@ export async function deleteProduct(_prev: ProductFormState, formData: FormData)
     return {
       error:
         error.code === "23503"
-          ? "This product is part of existing orders and can't be deleted. Untick \"Visible in store\" to hide it instead."
+          ? t.msg.productInOrders
           : error.message,
     };
   }

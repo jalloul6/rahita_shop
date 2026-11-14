@@ -10,16 +10,20 @@ import { saveSettings, type SettingsState } from "@/app/(admin)/admin/settings/a
 import { IMAGE_TYPES } from "@/lib/products";
 import { uploadImage } from "@/lib/upload";
 import { cn } from "@/lib/utils";
+import { useAdminT } from "@/lib/i18n/admin-client";
+import { translateValidation } from "@/lib/i18n/admin";
 import type { ShopSettings } from "@/types/database";
 
 type Values = Partial<ShopSettings>;
 
 export function SettingsForm({ initial }: { initial: Values }) {
+  const { t } = useAdminT();
+  const s = t.settings;
   const [state, action, pending] = useActionState<SettingsState, FormData>(saveSettings, {});
   const [heroImage, setHeroImage] = useState(initial.hero_image_url ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const err = (f: string) => state.fieldErrors?.[f]?.[0];
+  const err = (f: string) => translateValidation(state.fieldErrors?.[f]?.[0], t);
   const val = (k: keyof ShopSettings) => (typeof initial[k] === "string" ? (initial[k] as string) : "");
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -28,7 +32,7 @@ export function SettingsForm({ initial }: { initial: Values }) {
     if (!file) return;
     setUploadError("");
     setUploading(true);
-    const result = await uploadImage(file, "hero");
+    const result = await uploadImage(file, "hero", { type: t.msg.imageType, size: t.msg.imageSize });
     setUploading(false);
     if (result.error) setUploadError(result.error);
     else if (result.url) setHeroImage(result.url);
@@ -38,20 +42,20 @@ export function SettingsForm({ initial }: { initial: Values }) {
     <form action={action} className="space-y-8">
       <input type="hidden" name="hero_image_url" value={heroImage} />
 
-      <Section title="Contact & payments" hint="Used across the store, WhatsApp buttons and the Whish Money checkout box.">
+      <Section title={s.contact} hint={s.contactHint}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="WhatsApp number (orders & receipts)" id="whatsapp_number" error={err("whatsapp_number")}>
+          <Field label={s.whatsapp} id="whatsapp_number" error={err("whatsapp_number")}>
             <Input id="whatsapp_number" name="whatsapp_number" type="tel" dir="ltr" placeholder="+961 70 000 000" defaultValue={val("whatsapp_number")} />
           </Field>
-          <Field label="Whish Money number" id="whish_number" error={err("whish_number")}>
+          <Field label={s.whish} id="whish_number" error={err("whish_number")}>
             <Input id="whish_number" name="whish_number" type="tel" dir="ltr" placeholder="70 000 000" defaultValue={val("whish_number")} />
           </Field>
-          <Field label="Instagram link" id="instagram_url" error={err("instagram_url")}>
+          <Field label={s.instagram} id="instagram_url" error={err("instagram_url")}>
             <Input id="instagram_url" name="instagram_url" dir="ltr" placeholder="https://instagram.com/yourshop" defaultValue={val("instagram_url")} />
           </Field>
         </div>
         <Bilingual
-          label="Footer copyright text"
+          label={s.copyright}
           name="copyright"
           initial={initial}
           err={err}
@@ -59,7 +63,7 @@ export function SettingsForm({ initial }: { initial: Values }) {
         />
       </Section>
 
-      <Section title="Announcement bar" hint="The strip at the very top of the store, e.g. a delivery deal or a bundle offer.">
+      <Section title={s.announcement} hint={s.announcementHint}>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -67,10 +71,10 @@ export function SettingsForm({ initial }: { initial: Values }) {
             defaultChecked={initial.announcement_enabled ?? true}
             className="size-4 accent-primary"
           />
-          Show the announcement bar
+          {s.showAnnouncement}
         </label>
         <Bilingual
-          label="Announcement text"
+          label={s.announcementText}
           name="announcement"
           initial={initial}
           err={err}
@@ -78,9 +82,9 @@ export function SettingsForm({ initial }: { initial: Values }) {
         />
       </Section>
 
-      <Section title="Hero banner" hint="The big banner at the top of the home page. Empty fields use the built-in text.">
+      <Section title={s.hero} hint={s.heroHint}>
         <div className="space-y-2">
-          <Label>Cover image</Label>
+          <Label>{s.cover}</Label>
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex h-28 w-48 items-center justify-center overflow-hidden rounded-lg border bg-muted">
               {heroImage ? (
@@ -93,33 +97,33 @@ export function SettingsForm({ initial }: { initial: Values }) {
             <div className="flex gap-2">
               <label className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
                 {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-                {heroImage ? "Replace" : "Upload"}
+                {heroImage ? t.common.replace : t.common.upload}
                 <input type="file" accept={Object.keys(IMAGE_TYPES).join(",")} className="sr-only" onChange={onFile} disabled={uploading} />
               </label>
               {heroImage && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => setHeroImage("")}>
-                  <X className="size-4" /> Remove
+                  <X className="size-4" /> {t.common.remove}
                 </Button>
               )}
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">Wide photo recommended (e.g. 1600×800). A dark overlay keeps the text readable.</p>
+          <p className="text-xs text-muted-foreground">{s.coverHint}</p>
           {(uploadError || err("hero_image_url")) && <p className="text-sm text-destructive">{uploadError || err("hero_image_url")}</p>}
         </div>
-        <Bilingual label="Title" name="hero_title" initial={initial} err={err} placeholder={{ en: "Find a scent, or a gift, they'll remember.", ar: "عطرٌ أو هديّة… تبقى في الذاكرة." }} />
-        <Bilingual label="Description" name="hero_text" initial={initial} err={err} multiline />
-        <Bilingual label="Button text" name="hero_cta" initial={initial} err={err} placeholder={{ en: "Shop now", ar: "تسوّق الآن" }} />
-        <Field label="Button link" id="hero_cta_url" error={err("hero_cta_url")}>
+        <Bilingual label={s.heroTitle} name="hero_title" initial={initial} err={err} placeholder={{ en: "Find a scent, or a gift, they'll remember.", ar: "عطرٌ أو هديّة… تبقى في الذاكرة." }} />
+        <Bilingual label={s.heroText} name="hero_text" initial={initial} err={err} multiline />
+        <Bilingual label={s.ctaText} name="hero_cta" initial={initial} err={err} placeholder={{ en: "Shop now", ar: "تسوّق الآن" }} />
+        <Field label={s.ctaUrl} id="hero_cta_url" error={err("hero_cta_url")}>
           <Input id="hero_cta_url" name="hero_cta_url" dir="ltr" placeholder="/products" defaultValue={val("hero_cta_url")} />
         </Field>
       </Section>
 
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t bg-background/95 py-4 backdrop-blur">
         <Button type="submit" disabled={pending || uploading}>
-          {pending ? "Saving…" : "Save settings"}
+          {pending ? t.common.saving : s.saveSettings}
         </Button>
         <a href="/" target="_blank" rel="noopener noreferrer" className="text-sm underline-offset-4 hover:underline">
-          Open store in a new tab
+          {t.common.openStore}
         </a>
         {state.error && (
           <p role="alert" className="text-sm text-destructive">
@@ -170,6 +174,7 @@ function Bilingual({
   placeholder?: { en: string; ar: string };
   multiline?: boolean;
 }) {
+  const { t } = useAdminT();
   const Control = multiline ? Textarea : Input;
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -177,7 +182,7 @@ function Bilingual({
         const key = `${name}_${lang}` as keyof ShopSettings;
         const value = initial[key];
         return (
-          <Field key={lang} label={`${label} (${lang === "en" ? "English" : "العربية"})`} id={key} error={err(key)}>
+          <Field key={lang} label={`${label} (${lang === "en" ? t.settings.english : t.settings.arabic})`} id={key} error={err(key)}>
             <Control
               id={key}
               name={key}

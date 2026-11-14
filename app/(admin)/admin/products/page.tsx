@@ -10,36 +10,48 @@ import { formatMoney } from "@/lib/format";
 import { LOW_STOCK } from "@/lib/products";
 import { cn } from "@/lib/utils";
 import { setActive, setSponsored } from "./actions";
+import { getAdminT } from "@/lib/i18n/admin-server";
+import type { AdminDict } from "@/lib/i18n/admin";
 
 export const metadata: Metadata = { title: "Products" };
 
 export default function ProductsPage() {
   return (
+    <Suspense fallback={<p className="text-sm text-muted-foreground">…</p>}>
+      <Products />
+    </Suspense>
+  );
+}
+
+async function Products() {
+  const t = await getAdminT();
+  return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
-          <p className="text-sm text-muted-foreground">Manage catalog, stock and featured items.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.products.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.products.subtitle}</p>
         </div>
         <Link href="/admin/products/new" className={cn(buttonVariants())}>
           <Plus className="size-4" />
-          New product
+          {t.products.newProduct}
         </Link>
       </div>
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading products…</p>}>
-        <ProductsTable />
+      <Suspense fallback={<p className="text-sm text-muted-foreground">{t.products.loading}</p>}>
+        <ProductsTable t={t} />
       </Suspense>
     </div>
   );
 }
 
-async function ProductsTable() {
+async function ProductsTable({ t }: { t: AdminDict }) {
+  const x = t.products;
   const { products, error } = await getAdminProducts();
 
   if (error) {
     return (
       <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-        Could not load products: {error}
+        {t.common.couldNotLoad(x.what, error)}
       </p>
     );
   }
@@ -49,13 +61,13 @@ async function ProductsTable() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-16">Image</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead className="text-right">Price</TableHead>
-            <TableHead className="text-right">Stock</TableHead>
-            <TableHead>Featured</TableHead>
-            <TableHead>Visibility</TableHead>
+            <TableHead className="w-16">{x.image}</TableHead>
+            <TableHead>{t.common.name}</TableHead>
+            <TableHead>{x.category}</TableHead>
+            <TableHead className="text-end">{t.common.price}</TableHead>
+            <TableHead className="text-end">{x.stock}</TableHead>
+            <TableHead>{x.featured}</TableHead>
+            <TableHead>{x.visibility}</TableHead>
             <TableHead />
           </TableRow>
         </TableHeader>
@@ -63,7 +75,7 @@ async function ProductsTable() {
           {products.length === 0 ? (
             <TableRow>
               <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                No products yet. Create your first one.
+                {x.empty}
               </TableCell>
             </TableRow>
           ) : (
@@ -81,12 +93,12 @@ async function ProductsTable() {
                 </TableCell>
                 <TableCell className="font-medium">{p.name}</TableCell>
                 <TableCell>{p.category}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatMoney(p.price)}</TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-end tabular-nums">{formatMoney(p.price)}</TableCell>
+                <TableCell className="text-end tabular-nums">
                   {p.stock_quantity === 0 ? (
-                    <Badge variant="outline" className="border-red-300 text-red-700 dark:text-red-300">Out of stock</Badge>
+                    <Badge variant="outline" className="border-red-300 text-red-700 dark:text-red-300">{x.outOfStock}</Badge>
                   ) : p.stock_quantity <= LOW_STOCK ? (
-                    <span className="font-medium text-amber-700 dark:text-amber-300">{p.stock_quantity} (low)</span>
+                    <span className="font-medium text-amber-700 dark:text-amber-300">{x.low(p.stock_quantity)}</span>
                   ) : (
                     p.stock_quantity
                   )}
@@ -99,7 +111,7 @@ async function ProductsTable() {
                       type="submit"
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={p.is_sponsored ? "Remove from featured" : "Add to featured"}
+                      aria-label={p.is_sponsored ? x.removeFeatured : x.addFeatured}
                       aria-pressed={p.is_sponsored}
                     >
                       <Star className={cn("size-4", p.is_sponsored && "fill-amber-400 text-amber-500")} />
@@ -110,14 +122,14 @@ async function ProductsTable() {
                   <form action={setActive}>
                     <input type="hidden" name="id" value={p.id} />
                     <input type="hidden" name="value" value={String(!p.is_active)} />
-                    <Button type="submit" variant="ghost" size="sm" title={p.is_active ? "Click to hide" : "Click to show"}>
-                      {p.is_active ? "Visible" : <span className="text-muted-foreground">Hidden</span>}
+                    <Button type="submit" variant="ghost" size="sm" title={p.is_active ? x.clickHide : x.clickShow}>
+                      {p.is_active ? x.visible : <span className="text-muted-foreground">{x.hidden}</span>}
                     </Button>
                   </form>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-end">
                   <Link href={`/admin/products/${p.id}/edit`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-                    Edit
+                    {t.common.edit}
                   </Link>
                 </TableCell>
               </TableRow>

@@ -1,4 +1,4 @@
-import type { OrderSource, OrderStatus, PaymentMethod, PaymentStatus } from "@/types/database";
+import type { OrderStatus, PaymentMethod, PaymentStatus } from "@/types/database";
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cod: "Cash on Delivery",
@@ -24,6 +24,8 @@ export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
 // Happy path shown in the stepper.
 export const FLOW: OrderStatus[] = ["pending", "processing", "out_for_delivery", "delivered"];
 
+// Labels for statuses, sources and payment methods live in lib/i18n/admin.ts (EN/AR).
+
 // Allowed status-button moves. Canceled and Returned are final (also enforced by a DB trigger).
 // Delivered / paid orders go back through Return / Refund (process_return), not a status button;
 // "returned" here is for parcels the courier brings back undelivered.
@@ -40,22 +42,8 @@ export function allowedTransitions(status: OrderStatus): OrderStatus[] {
   }
 }
 
-export const ACTION_LABELS: Record<OrderStatus, string> = {
-  pending: "Mark pending",
-  processing: "Start processing",
-  out_for_delivery: "Send out for delivery",
-  delivered: "Mark delivered",
-  partially_returned: "Partially returned",
-  returned: "Mark returned",
-  canceled: "Cancel order",
-};
-
 export function isOrderStatus(value: unknown): value is OrderStatus {
   return ORDER_STATUSES.some((s) => s.value === value);
-}
-
-export function statusLabel(status: OrderStatus) {
-  return ORDER_STATUSES.find((s) => s.value === status)?.label ?? status;
 }
 
 // Customer-facing order reference. The sequence number is offset so early orders don't read
@@ -70,18 +58,6 @@ export function orderRef(orderNumber: number) {
 // "RH-1042" -> true (format check only; the page never looks the order up)
 export function isOrderRef(value: string) {
   return /^RH-\d{4,12}$/.test(value);
-}
-
-export const ORDER_SOURCE_LABELS: Record<OrderSource, string> = {
-  online: "Online",
-  in_store: "In-store",
-  phone: "Phone / WhatsApp",
-};
-
-// Exchange price difference for the admin: positive = collect, negative = refund.
-export function exchangeMoney(diff: number) {
-  const amount = `$${Math.abs(diff).toFixed(2)}`;
-  return diff > 0 ? `Collected ${amount}` : diff < 0 ? `Refunded ${amount}` : "No price difference";
 }
 
 // Return / Refund is offered for delivered or paid orders that still have units to return.

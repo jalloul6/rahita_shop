@@ -3,20 +3,18 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { updateOrderStatus, type StatusState } from "@/app/(admin)/admin/orders/actions";
-import { ACTION_LABELS, FLOW, allowedTransitions } from "@/lib/orders";
+import { FLOW, allowedTransitions } from "@/lib/orders";
+import { useAdminT } from "@/lib/i18n/admin-client";
 import type { OrderStatus } from "@/types/database";
-
-const CONFIRM: Partial<Record<OrderStatus, string>> = {
-  canceled: "Cancel this order? Reserved stock will be returned to inventory. This cannot be undone.",
-  returned: "Mark this order as returned? Stock will be returned to inventory. This cannot be undone.",
-};
 
 export function StatusActions({ orderId, status }: { orderId: string; status: OrderStatus }) {
   const [state, action, pending] = useActionState<StatusState, FormData>(updateOrderStatus, {});
+  const { t } = useAdminT();
   const options = allowedTransitions(status);
+  const confirmText: Partial<Record<OrderStatus, string>> = { canceled: t.order.confirmCancel, returned: t.order.confirmReturned };
 
   if (options.length === 0) {
-    return <p className="text-sm text-muted-foreground">This order is final; its status can no longer be changed.</p>;
+    return <p className="text-sm text-muted-foreground">{t.order.finalNote}</p>;
   }
 
   return (
@@ -35,11 +33,11 @@ export function StatusActions({ orderId, status }: { orderId: string; status: Or
               variant={forward ? "default" : "outline"}
               className={forward ? undefined : "text-destructive"}
               onClick={(e) => {
-                const message = CONFIRM[target];
+                const message = confirmText[target];
                 if (message && !window.confirm(message)) e.preventDefault();
               }}
             >
-              {ACTION_LABELS[target]}
+              {t.statusAction[target]}
             </Button>
           );
         })}

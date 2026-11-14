@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import { IMAGE_BUCKET, IMAGE_TYPES, MAX_IMAGE_BYTES, type ProductFormState } from "@/lib/products";
 import { cn } from "@/lib/utils";
+import { useAdminT } from "@/lib/i18n/admin-client";
+import { translateValidation } from "@/lib/i18n/admin";
 import type { Database } from "@/types/database";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
@@ -24,13 +26,15 @@ export function ProductForm({
   product?: Product;
   categories: string[];
 }) {
+  const { t } = useAdminT();
+  const f = t.productForm;
   const [state, formAction, pending] = useActionState<ProductFormState, FormData>(action, {});
   const [imageUrl, setImageUrl] = useState(state.values?.image_url ?? product?.image_url ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
   const v = state.values;
-  const err = (field: string) => state.fieldErrors?.[field]?.[0];
+  const err = (field: string) => translateValidation(state.fieldErrors?.[field]?.[0], t);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -39,8 +43,8 @@ export function ProductForm({
     setUploadError("");
 
     const ext = IMAGE_TYPES[file.type];
-    if (!ext) return setUploadError("Use a JPG, PNG or WebP image.");
-    if (file.size > MAX_IMAGE_BYTES) return setUploadError("Image must be 5 MB or smaller.");
+    if (!ext) return setUploadError(t.msg.imageType);
+    if (file.size > MAX_IMAGE_BYTES) return setUploadError(t.msg.imageSize);
 
     setUploading(true);
     // Uploaded straight to Storage with the admin's session (RLS allows admins only),
@@ -67,11 +71,11 @@ export function ProductForm({
         </p>
       )}
 
-      <Field label="Name" htmlFor="name" error={err("name")}>
+      <Field label={t.common.name} htmlFor="name" error={err("name")}>
         <Input id="name" name="name" required maxLength={200} defaultValue={v?.name ?? product?.name ?? ""} />
       </Field>
 
-      <Field label="Description" htmlFor="description" error={err("description")}>
+      <Field label={f.description} htmlFor="description" error={err("description")}>
         <Textarea
           id="description"
           name="description"
@@ -81,7 +85,7 @@ export function ProductForm({
       </Field>
 
       <div className="grid gap-6 sm:grid-cols-2">
-        <Field label="Price" htmlFor="price" error={err("price")}>
+        <Field label={t.common.price} htmlFor="price" error={err("price")}>
           <Input
             id="price"
             name="price"
@@ -90,16 +94,16 @@ export function ProductForm({
             defaultValue={v?.price ?? (product ? String(product.price) : "")}
           />
         </Field>
-        <Field label="Compare-at price (optional)" htmlFor="compare_at_price" error={err("compare_at_price")}>
+        <Field label={f.compareAt} htmlFor="compare_at_price" error={err("compare_at_price")}>
           <Input
             id="compare_at_price"
             name="compare_at_price"
             inputMode="decimal"
-            placeholder="Original price"
+            placeholder={f.originalPrice}
             defaultValue={v?.compare_at_price ?? (product?.compare_at_price != null ? String(product.compare_at_price) : "")}
           />
         </Field>
-        <Field label="Stock quantity" htmlFor="stock_quantity" error={err("stock_quantity")}>
+        <Field label={f.stockQty} htmlFor="stock_quantity" error={err("stock_quantity")}>
           <Input
             id="stock_quantity"
             name="stock_quantity"
@@ -108,7 +112,7 @@ export function ProductForm({
             defaultValue={v?.stock_quantity ?? (product ? String(product.stock_quantity) : "0")}
           />
         </Field>
-        <Field label="Category" htmlFor="category" error={err("category")}>
+        <Field label={t.products.category} htmlFor="category" error={err("category")}>
           <Input
             id="category"
             name="category"
@@ -126,7 +130,7 @@ export function ProductForm({
       </div>
 
       <div className="space-y-2">
-        <Label>Image</Label>
+        <Label>{t.products.image}</Label>
         <div className="flex items-center gap-4">
           <div className="flex size-24 items-center justify-center overflow-hidden rounded-lg border bg-muted">
             {imageUrl ? (
@@ -140,16 +144,16 @@ export function ProductForm({
             <div className="flex gap-2">
               <label className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
                 {uploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-                {imageUrl ? "Replace" : "Upload"}
+                {imageUrl ? t.common.replace : t.common.upload}
                 <input type="file" accept={Object.keys(IMAGE_TYPES).join(",")} className="sr-only" onChange={onFile} disabled={uploading} />
               </label>
               {imageUrl && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => setImageUrl("")}>
-                  <X className="size-4" /> Remove
+                  <X className="size-4" /> {t.common.remove}
                 </Button>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">JPG, PNG or WebP, up to 5 MB.</p>
+            <p className="text-xs text-muted-foreground">{t.common.imageHint}</p>
           </div>
         </div>
         {(uploadError || err("image_url")) && (
@@ -162,30 +166,30 @@ export function ProductForm({
       <div className="space-y-3">
         <Check
           name="is_sponsored"
-          label="Sponsored / Featured"
-          hint="Shown in the featured row on the home page."
+          label={f.sponsored}
+          hint={f.sponsoredHint}
           defaultChecked={v ? v.is_sponsored === "on" : (product?.is_sponsored ?? false)}
         />
         <Check
           name="is_on_offer"
-          label="On offer"
-          hint="Shown in the Special offers section on the home page (bundles, deals)."
+          label={f.onOffer}
+          hint={f.onOfferHint}
           defaultChecked={v ? v.is_on_offer === "on" : (product?.is_on_offer ?? false)}
         />
         <Check
           name="is_active"
-          label="Visible in store"
-          hint="Untick to hide the product without deleting it."
+          label={f.visible}
+          hint={f.visibleHint}
           defaultChecked={v ? v.is_active === "on" : (product?.is_active ?? true)}
         />
       </div>
 
       <div className="flex gap-3">
         <Button type="submit" disabled={pending || uploading}>
-          {pending ? "Saving…" : product ? "Save changes" : "Create product"}
+          {pending ? t.common.saving : product ? f.saveChanges : f.create}
         </Button>
         <Link href="/admin/products" className={cn(buttonVariants({ variant: "ghost" }))}>
-          Cancel
+          {t.common.cancel}
         </Link>
       </div>
     </form>

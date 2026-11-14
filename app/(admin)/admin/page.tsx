@@ -11,6 +11,8 @@ import { formatDateTime, formatMoney } from "@/lib/format";
 import { ALERT_STOCK } from "@/lib/products";
 import { orderRef } from "@/lib/orders";
 import { SHOP_TIMEZONE } from "@/lib/shop";
+import { getAdminT } from "@/lib/i18n/admin-server";
+import type { AdminDict } from "@/lib/i18n/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { DashboardStats } from "@/types/database";
 
@@ -18,19 +20,29 @@ export const metadata: Metadata = { title: "Dashboard" };
 
 export default function DashboardPage() {
   return (
+    <Suspense fallback={<p className="text-sm text-muted-foreground">…</p>}>
+      <Dashboard />
+    </Suspense>
+  );
+}
+
+async function Dashboard() {
+  const t = await getAdminT();
+  return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Sales overview and what needs attention today.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.dashboard.title}</h1>
+        <p className="text-sm text-muted-foreground">{t.dashboard.subtitle}</p>
       </div>
-      <Suspense fallback={<p className="text-sm text-muted-foreground">Loading dashboard…</p>}>
-        <DashboardContent />
+      <Suspense fallback={<p className="text-sm text-muted-foreground">{t.dashboard.loading}</p>}>
+        <DashboardContent t={t} />
       </Suspense>
     </div>
   );
 }
 
-async function DashboardContent() {
+async function DashboardContent({ t }: { t: AdminDict }) {
+  const d = t.dashboard;
   const supabase = await createClient();
 
   const [stats, lowStock, latest] = await Promise.all([
@@ -54,8 +66,7 @@ async function DashboardContent() {
   if (error || !stats.data) {
     return (
       <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-        Could not load dashboard: {error?.message ?? "no data"}. If this mentions admin_dashboard_stats, run
-        supabase/migrations/002_payments_promos_analytics.sql in the Supabase SQL editor.
+        {d.loadError(error?.message ?? "no data")}
       </p>
     );
   }
@@ -70,7 +81,7 @@ async function DashboardContent() {
         <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950">
           <div className="flex items-center gap-2 font-semibold">
             <AlertTriangle className="size-5 text-amber-600" />
-            Low stock: {products.length} product{products.length === 1 ? "" : "s"} at {ALERT_STOCK} or fewer
+            {d.lowStockBanner(products.length, ALERT_STOCK)}
           </div>
           <ul className="mt-3 flex flex-wrap gap-2">
             {products.map((p) => (
@@ -81,9 +92,9 @@ async function DashboardContent() {
                 >
                   <span className="font-medium">{p.name}</span>
                   <span className={p.stock_quantity === 0 ? "font-semibold text-red-700" : "font-semibold text-amber-700"}>
-                    {p.stock_quantity === 0 ? "Out" : `${p.stock_quantity} left`}
+                    {p.stock_quantity === 0 ? d.out : d.left(p.stock_quantity)}
                   </span>
-                  <span className="text-xs text-muted-foreground underline">Restock</span>
+                  <span className="text-xs text-muted-foreground underline">{d.restock}</span>
                 </Link>
               </li>
             ))}
@@ -92,34 +103,34 @@ async function DashboardContent() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Net revenue" value={formatMoney(kpis.total_sales)} hint="Delivered or paid orders, after refunds" />
+        <Stat label={d.netRevenue} value={formatMoney(kpis.total_sales)} hint={d.netRevenueHint} />
         <Stat
-          label="Today"
+          label={d.today}
           value={formatMoney(kpis.today_sales)}
-          hint={`${kpis.today_orders} order${kpis.today_orders === 1 ? "" : "s"} placed, excl. canceled, net of refunds`}
+          hint={d.todayHint(kpis.today_orders)}
         />
         <Stat
-          label="This month"
+          label={d.month}
           value={formatMoney(kpis.month_sales)}
-          hint={`${kpis.month_orders} order${kpis.month_orders === 1 ? "" : "s"}, excl. canceled, net of refunds`}
+          hint={d.monthHint(kpis.month_orders)}
         />
         <Stat
-          label="In progress"
+          label={d.inProgress}
           value={String(inProgress)}
-          hint={`${kpis.pending} pending · ${kpis.processing} processing`}
+          hint={d.inProgressHint(kpis.pending, kpis.processing)}
           href="/admin/orders?status=pending"
         />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat
-          label="Out for delivery"
+          label={d.outForDelivery}
           value={String(kpis.out_for_delivery)}
-          hint="With the courier"
+          hint={d.outForDeliveryHint}
           href="/admin/orders?status=out_for_delivery"
         />
-        <Stat label="Whish payments to confirm" value={String(kpis.unpaid_whish)} hint="Whish orders still marked unpaid" />
-        <Stat label="Refunds" value={formatMoney(kpis.refunds_total ?? 0)} hint="Total refunded to customers" />
+        <Stat label={d.whishToConfirm} value={String(kpis.unpaid_whish)} hint={d.whishToConfirmHint} />
+        <Stat label={d.refunds} value={formatMoney(kpis.refunds_total ?? 0)} hint={d.refundsHint} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -127,12 +138,12 @@ async function DashboardContent() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Trophy className="size-4 text-amber-500" />
-              Top products
+              {d.topProducts}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {top_products.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No sales yet.</p>
+              <p className="text-sm text-muted-foreground">{d.noSales}</p>
             ) : (
               <ol className="space-y-3">
                 {top_products.map((p, i) => (
@@ -143,8 +154,8 @@ async function DashboardContent() {
                     <Link href={`/admin/products/${p.product_id}/edit`} className="min-w-0 flex-1 truncate font-medium hover:underline">
                       {p.name}
                     </Link>
-                    <span className="shrink-0 text-right tabular-nums">
-                      {p.quantity} sold
+                    <span className="shrink-0 text-end tabular-nums">
+                      {d.sold(p.quantity)}
                       <span className="block text-xs text-muted-foreground">{formatMoney(Number(p.revenue))}</span>
                     </span>
                   </li>
@@ -158,12 +169,12 @@ async function DashboardContent() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="size-4 text-amber-600" />
-              Low stock (≤ {ALERT_STOCK})
+              {d.lowStock(ALERT_STOCK)}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {products.length === 0 ? (
-              <p className="text-sm text-muted-foreground">All products have more than {ALERT_STOCK} in stock.</p>
+              <p className="text-sm text-muted-foreground">{d.allStocked(ALERT_STOCK)}</p>
             ) : (
               <ul className="divide-y">
                 {products.map((p) => (
@@ -173,11 +184,11 @@ async function DashboardContent() {
                     </Link>
                     {p.stock_quantity === 0 ? (
                       <Badge variant="outline" className="border-red-300 text-red-700 dark:text-red-300">
-                        Out of stock
+                        {d.outOfStock}
                       </Badge>
                     ) : (
                       <span className="shrink-0 font-medium text-amber-700 tabular-nums dark:text-amber-300">
-                        {p.stock_quantity} left
+                        {d.left(p.stock_quantity)}
                       </span>
                     )}
                   </li>
@@ -189,22 +200,22 @@ async function DashboardContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Latest orders</CardTitle>
+            <CardTitle>{d.latestOrders}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>{t.common.order}</TableHead>
+                  <TableHead>{t.common.status}</TableHead>
+                  <TableHead className="text-end">{t.common.total}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(latest.data ?? []).length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={3} className="h-16 text-center text-muted-foreground">
-                      No orders yet.
+                      {d.noOrders}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -221,14 +232,14 @@ async function DashboardContent() {
                         <StatusBadge status={o.status} />
                         <PaymentBadge method={o.payment_method} status={o.payment_status} />
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(o.total_amount)}</TableCell>
+                      <TableCell className="text-end tabular-nums">{formatMoney(o.total_amount)}</TableCell>
                     </TableRow>
                   ))
                 )}
               </TableBody>
             </Table>
             <Link href="/admin/orders" className="mt-3 inline-block text-sm underline-offset-4 hover:underline">
-              View all orders
+              {d.viewAll}
             </Link>
           </CardContent>
         </Card>

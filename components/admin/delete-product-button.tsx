@@ -5,8 +5,10 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deleteProduct } from "@/app/(admin)/admin/products/actions";
 import type { ProductFormState } from "@/lib/products";
+import { useAdminT } from "@/lib/i18n/admin-client";
 
 export function DeleteProductButton({ id, name }: { id: string; name: string }) {
+  const { t } = useAdminT();
   const [state, action, pending] = useActionState<ProductFormState, FormData>(deleteProduct, {});
 
   return (
@@ -18,11 +20,11 @@ export function DeleteProductButton({ id, name }: { id: string; name: string }) 
         className="text-destructive"
         disabled={pending}
         onClick={(e) => {
-          if (!window.confirm(`Delete "${name}" permanently? This cannot be undone.`)) e.preventDefault();
+          if (!window.confirm(t.productForm.confirmDelete(name))) e.preventDefault();
         }}
       >
         <Trash2 className="size-4" />
-        {pending ? "Deleting…" : "Delete product"}
+        {pending ? t.productForm.deleting : t.productForm.deleteProduct}
       </Button>
       {state.error && (
         <p role="alert" className="max-w-md text-sm text-destructive">

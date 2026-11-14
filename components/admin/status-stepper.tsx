@@ -1,15 +1,19 @@
+"use client";
+
 import { Check } from "lucide-react";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { FLOW, statusLabel } from "@/lib/orders";
+import { FLOW } from "@/lib/orders";
+import { useAdminT } from "@/lib/i18n/admin-client";
 import { cn } from "@/lib/utils";
 import type { OrderStatus } from "@/types/database";
 
 export function StatusStepper({ status }: { status: OrderStatus }) {
+  const { t } = useAdminT();
   // Canceled / Returned leave the happy path, so show them as a single end state.
   if (status === "canceled" || status === "returned") {
     return (
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-muted-foreground">Final status:</span>
+        <span className="text-muted-foreground">{t.order.finalStatus}</span>
         <StatusBadge status={status} />
       </div>
     );
@@ -21,7 +25,7 @@ export function StatusStepper({ status }: { status: OrderStatus }) {
       <div className="space-y-4">
         <StatusStepper status="delivered" />
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">After delivery:</span>
+          <span className="text-muted-foreground">{t.order.afterDelivery}</span>
           <StatusBadge status={status} />
         </div>
       </div>
@@ -31,7 +35,7 @@ export function StatusStepper({ status }: { status: OrderStatus }) {
   const current = FLOW.indexOf(status);
 
   return (
-    <ol className="flex items-start" aria-label="Order progress">
+    <ol className="flex items-start" aria-label={t.order.progressAria}>
       {FLOW.map((step, i) => {
         const done = i < current || status === "delivered";
         const active = i === current && status !== "delivered";
@@ -51,7 +55,7 @@ export function StatusStepper({ status }: { status: OrderStatus }) {
               </div>
               <div className={cn("h-0.5 flex-1", i === FLOW.length - 1 ? "bg-transparent" : i < current ? "bg-primary" : "bg-border")} />
             </div>
-            <span className={cn("text-xs", active ? "font-semibold" : "text-muted-foreground")}>{statusLabel(step)}</span>
+            <span className={cn("text-xs", active ? "font-semibold" : "text-muted-foreground")}>{t.status[step]}</span>
           </li>
         );
       })}

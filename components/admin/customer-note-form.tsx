@@ -3,9 +3,11 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useAdminT } from "@/lib/i18n/admin-client";
 import { saveCustomerNote, type NoteState } from "@/app/(admin)/admin/customers/actions";
 
 export function CustomerNoteForm({ phoneKey, note }: { phoneKey: string; note: string }) {
+  const { t } = useAdminT();
   const [state, action, pending] = useActionState<NoteState, FormData>(saveCustomerNote, {});
 
   return (
@@ -15,12 +17,12 @@ export function CustomerNoteForm({ phoneKey, note }: { phoneKey: string; note: s
         name="note"
         rows={5}
         defaultValue={note}
-        placeholder="Preferences, sizes, gift occasions, delivery instructions… (only visible to admins)"
-        aria-label="Private customer notes"
+        placeholder={t.customers.notePlaceholder}
+        aria-label={t.customers.noteAria}
       />
       <div className="flex items-center gap-3">
         <Button type="submit" size="sm" disabled={pending}>
-          {pending ? "Saving…" : "Save note"}
+          {pending ? t.common.saving : t.customers.saveNote}
         </Button>
         {state.error && <p className="text-sm text-destructive">{state.error}</p>}
         {state.success && <p className="text-sm text-green-700">{state.success}</p>}

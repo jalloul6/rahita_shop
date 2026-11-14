@@ -5,13 +5,14 @@ import { PrintButton } from "@/components/admin/print-button";
 import { getOrder } from "@/lib/data/orders";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { SHOP_NAME, SHOP_PHONE, SHOP_TAGLINE } from "@/lib/shop";
-import { PAYMENT_METHOD_LABELS, exchangeMoney, orderRef, statusLabel } from "@/lib/orders";
+import { orderRef } from "@/lib/orders";
+import { getAdminT } from "@/lib/i18n/admin-server";
 
 export const metadata: Metadata = { title: "Receipt" };
 
 export default function ReceiptPage(props: PageProps<"/admin/orders/[id]/receipt">) {
   return (
-    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading receipt…</p>}>
+    <Suspense fallback={<p className="text-sm text-muted-foreground">…</p>}>
       <Receipt params={props.params} />
     </Suspense>
   );
@@ -21,6 +22,9 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
   const { id } = await params;
   const order = await getOrder(id);
   if (!order) notFound();
+  const t = await getAdminT();
+  const r = t.receipt;
+  const exchangeMoney = t.exchangeMoney;
   const inStore = order.order_source === "in_store";
   const itemNames = new Map(order.order_items.map((i) => [i.id, i.product_name]));
   // Lines are listed as sold; exchanged-out units are credited back so the subtotal adds up.
@@ -44,8 +48,8 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
             <div className="text-sm">{SHOP_TAGLINE}</div>
             {SHOP_PHONE && <div className="text-sm">{SHOP_PHONE}</div>}
           </div>
-          <div className="text-right">
-            <div className="text-xs uppercase tracking-wide">Order</div>
+          <div className="text-end">
+            <div className="text-xs uppercase tracking-wide">{r.order}</div>
             <div className="text-3xl font-bold tabular-nums">{orderRef(order.order_number)}</div>
             <div className="text-xs">{formatDateTime(order.created_at)}</div>
           </div>
@@ -53,12 +57,12 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
 
         {inStore && (
           <div className="rounded bg-black py-2 text-center text-lg font-extrabold tracking-[0.3em] text-white print:[print-color-adjust:exact]">
-            IN-STORE SALE
+            {r.inStoreSale}
           </div>
         )}
 
         <section>
-          <div className="text-xs font-semibold uppercase tracking-wide">{inStore ? "Customer" : "Deliver to"}</div>
+          <div className="text-xs font-semibold uppercase tracking-wide">{inStore ? t.common.customer : r.deliverTo}</div>
           <div className="mt-1 text-xl font-bold">{order.customer_name}</div>
           {(order.phone1 || order.phone2) && (
             <div className="mt-1 text-lg font-semibold tabular-nums">
@@ -69,7 +73,7 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
           {order.address && <div className="mt-2 whitespace-pre-wrap text-base">{order.address}</div>}
           {!inStore && (
             <div className="mt-2 inline-block rounded border border-black px-2 py-0.5 text-sm font-semibold">
-              Zone: {order.shipping_zones?.zone_name ?? "—"}
+              {t.common.zone}: {order.shipping_zones?.zone_name ?? "—"}
             </div>
           )}
         </section>
@@ -77,11 +81,11 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
         <section>
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-y border-black text-left">
-                <th className="py-1.5">Item</th>
-                <th className="py-1.5 text-right">Qty</th>
-                <th className="py-1.5 text-right">Price</th>
-                <th className="py-1.5 text-right">Total</th>
+              <tr className="border-y border-black text-start">
+                <th className="py-1.5">{t.common.item}</th>
+                <th className="py-1.5 text-end">{t.common.qty}</th>
+                <th className="py-1.5 text-end">{t.common.price}</th>
+                <th className="py-1.5 text-end">{t.common.total}</th>
               </tr>
             </thead>
             <tbody>
@@ -89,57 +93,57 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
                 <tr key={item.id} className="border-b border-neutral-300">
                   <td className="py-1.5">
                     {item.product_name}
-                    {item.from_exchange && <span className="text-xs"> (exchange)</span>}
-                    {item.returned_quantity > 0 && <span className="text-xs"> ({item.returned_quantity} returned/exchanged)</span>}
+                    {item.from_exchange && <span className="text-xs"> {r.exchangeTag}</span>}
+                    {item.returned_quantity > 0 && <span className="text-xs"> {r.returnedTag(item.returned_quantity)}</span>}
                   </td>
-                  <td className="py-1.5 text-right tabular-nums">{item.quantity}</td>
-                  <td className="py-1.5 text-right tabular-nums">{formatMoney(item.unit_price)}</td>
-                  <td className="py-1.5 text-right tabular-nums">{formatMoney(item.unit_price * item.quantity)}</td>
+                  <td className="py-1.5 text-end tabular-nums">{item.quantity}</td>
+                  <td className="py-1.5 text-end tabular-nums">{formatMoney(item.unit_price)}</td>
+                  <td className="py-1.5 text-end tabular-nums">{formatMoney(item.unit_price * item.quantity)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <dl className="mt-2 ml-auto w-64 space-y-0.5 text-sm">
+          <dl className="mt-2 ms-auto w-64 space-y-0.5 text-sm">
             {exchangeCredit > 0 && (
               <>
                 <div className="flex justify-between">
-                  <dt>Items</dt>
+                  <dt>{r.items}</dt>
                   <dd className="tabular-nums">{formatMoney(itemsTotal)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt>Exchanged items returned</dt>
+                  <dt>{r.exchangedBack}</dt>
                   <dd className="tabular-nums">−{formatMoney(exchangeCredit)}</dd>
                 </div>
               </>
             )}
             <div className="flex justify-between">
-              <dt>Subtotal</dt>
+              <dt>{t.common.subtotal}</dt>
               <dd className="tabular-nums">{formatMoney(order.subtotal)}</dd>
             </div>
             {order.discount_amount > 0 && (
               <div className="flex justify-between">
-                <dt>Discount{order.promo_code ? ` (${order.promo_code})` : ""}</dt>
+                <dt>{t.common.discount}{order.promo_code ? ` (${order.promo_code})` : ""}</dt>
                 <dd className="tabular-nums">−{formatMoney(order.discount_amount)}</dd>
               </div>
             )}
             {!inStore && (
               <div className="flex justify-between">
-                <dt>Shipping</dt>
+                <dt>{t.common.shipping}</dt>
                 <dd className="tabular-nums">{formatMoney(order.shipping_fee)}</dd>
               </div>
             )}
             <div className="flex justify-between border-t border-black pt-0.5 font-semibold">
-              <dt>Total</dt>
+              <dt>{t.common.total}</dt>
               <dd className="tabular-nums">{formatMoney(order.total_amount)}</dd>
             </div>
             {order.refunded_amount > 0 && (
               <>
                 <div className="flex justify-between">
-                  <dt>Refunded</dt>
+                  <dt>{t.common.refunded}</dt>
                   <dd className="tabular-nums">−{formatMoney(order.refunded_amount)}</dd>
                 </div>
                 <div className="flex justify-between font-semibold">
-                  <dt>Net amount</dt>
+                  <dt>{t.common.netAmount}</dt>
                   <dd className="tabular-nums">{formatMoney(order.total_amount - order.refunded_amount)}</dd>
                 </div>
               </>
@@ -149,7 +153,7 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
 
         {order.order_exchange_batches.length > 0 && (
           <section className="space-y-1 text-sm">
-            <div className="text-xs font-semibold uppercase tracking-wide">Exchanges</div>
+            <div className="text-xs font-semibold uppercase tracking-wide">{r.exchanges}</div>
             {[...order.order_exchange_batches]
               .sort((a, b) => a.created_at.localeCompare(b.created_at))
               .map((b) => (
@@ -165,7 +169,7 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
                       .filter((l) => l.direction === "new")
                       .map((l) => `${l.quantity} × ${l.product_name}`)
                       .join(", ")}
-                    {b.shipping_refund > 0 ? ` · shipping refunded ${formatMoney(b.shipping_refund)}` : ""}
+                    {b.shipping_refund > 0 ? r.shippingRefunded(formatMoney(b.shipping_refund)) : ""}
                   </span>
                   <span className="shrink-0 tabular-nums">{exchangeMoney(b.price_difference)}</span>
                 </div>
@@ -175,7 +179,7 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
 
         {order.order_exchanges.length > 0 && (
           <section className="space-y-1 text-sm">
-            <div className="text-xs font-semibold uppercase tracking-wide">Earlier exchanges</div>
+            <div className="text-xs font-semibold uppercase tracking-wide">{r.earlierExchanges}</div>
             {[...order.order_exchanges]
               .sort((a, b) => a.created_at.localeCompare(b.created_at))
               .map((x) => (
@@ -193,14 +197,14 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
 
         {order.order_returns.length > 0 && (
           <section className="space-y-1 text-sm">
-            <div className="text-xs font-semibold uppercase tracking-wide">Returns</div>
+            <div className="text-xs font-semibold uppercase tracking-wide">{r.returns}</div>
             {[...order.order_returns]
               .sort((a, b) => a.created_at.localeCompare(b.created_at))
               .map((r) => (
                 <div key={r.id} className="flex justify-between gap-4 border-b border-neutral-300 py-1">
                   <span>
                     {formatDateTime(r.created_at)}:{" "}
-                    {r.order_return_items.map((ri) => `${ri.quantity} × ${itemNames.get(ri.order_item_id) ?? "Item"}`).join(", ")}
+                    {r.order_return_items.map((ri) => `${ri.quantity} × ${itemNames.get(ri.order_item_id) ?? t.common.item}`).join(", ")}
                     {r.reason ? ` (${r.reason})` : ""}
                   </span>
                   <span className="shrink-0 tabular-nums">−{formatMoney(r.refund_amount)}</span>
@@ -213,7 +217,7 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
           {inStore ? (
             <>
               <div className="text-xs font-semibold uppercase tracking-wide">
-                {order.payment_status === "paid" ? "Paid in store" : "Payment pending"} · {PAYMENT_METHOD_LABELS[order.payment_method]}
+                {order.payment_status === "paid" ? r.paidInStore : r.paymentPending} · {t.paymentMethod[order.payment_method]}
               </div>
               <div className="text-4xl font-extrabold tabular-nums">
                 {formatMoney(order.total_amount - order.refunded_amount)}
@@ -222,14 +226,14 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
           ) : order.payment_status === "paid" ? (
             <>
               <div className="text-xs font-semibold uppercase tracking-wide">
-                Paid via {PAYMENT_METHOD_LABELS[order.payment_method]}: collect
+                {r.paidVia(t.paymentMethod[order.payment_method])}
               </div>
               <div className="text-4xl font-extrabold tabular-nums">{formatMoney(0)}</div>
             </>
           ) : (
             <>
               <div className="text-xs font-semibold uppercase tracking-wide">
-                {order.payment_method === "whish" ? "Whish payment NOT confirmed: collect" : "Cash on delivery: collect"}
+                {order.payment_method === "whish" ? r.whishNotConfirmed : r.codCollect}
               </div>
               <div className="text-4xl font-extrabold tabular-nums">{formatMoney(order.total_amount)}</div>
             </>
@@ -238,14 +242,14 @@ async function Receipt({ params }: { params: PageProps<"/admin/orders/[id]/recei
 
         {order.notes && (
           <section className="text-sm">
-            <span className="font-semibold">Notes: </span>
+            <span className="font-semibold">{t.common.notes}: </span>
             <span className="whitespace-pre-wrap">{order.notes}</span>
           </section>
         )}
 
         <footer className="flex justify-between border-t border-black pt-3 text-xs">
-          <span>Status: {statusLabel(order.status)}</span>
-          <span>Thank you for shopping with {SHOP_NAME}</span>
+          <span>{r.statusLine(t.status[order.status])}</span>
+          <span>{r.thanks(SHOP_NAME)}</span>
         </footer>
       </article>
     </div>

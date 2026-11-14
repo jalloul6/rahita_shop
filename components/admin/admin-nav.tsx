@@ -3,22 +3,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, MapPin, Package, Palette, PlusCircle, Settings, ShoppingBag, TicketPercent, Users } from "lucide-react";
+import { useAdminT } from "@/lib/i18n/admin-client";
+import type { AdminDict } from "@/lib/i18n/admin";
 import { cn } from "@/lib/utils";
 
-const ITEMS: { href: string; label: string; icon: typeof ShoppingBag; exact?: boolean; exclude?: string }[] = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/orders/new", label: "New Order", icon: PlusCircle, exact: true },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingBag, exclude: "/admin/orders/new" },
-  { href: "/admin/customers", label: "Customers", icon: Users },
-  { href: "/admin/products", label: "Products", icon: Package },
-  { href: "/admin/zones", label: "Shipping Zones", icon: MapPin },
-  { href: "/admin/promos", label: "Promo Codes", icon: TicketPercent },
-  { href: "/admin/appearance", label: "Appearance", icon: Palette },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+const ITEMS: { href: string; label: keyof AdminDict["nav"]; icon: typeof ShoppingBag; exact?: boolean; exclude?: string }[] = [
+  { href: "/admin", label: "dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/admin/orders/new", label: "newOrder", icon: PlusCircle, exact: true },
+  { href: "/admin/orders", label: "orders", icon: ShoppingBag, exclude: "/admin/orders/new" },
+  { href: "/admin/customers", label: "customers", icon: Users },
+  { href: "/admin/products", label: "products", icon: Package },
+  { href: "/admin/zones", label: "zones", icon: MapPin },
+  { href: "/admin/promos", label: "promos", icon: TicketPercent },
+  { href: "/admin/appearance", label: "appearance", icon: Palette },
+  { href: "/admin/settings", label: "settings", icon: Settings },
 ];
 
 export function AdminNav() {
   const pathname = usePathname();
+  const { t } = useAdminT();
 
   return (
     <nav className="flex gap-1 md:flex-col">
@@ -37,7 +40,7 @@ export function AdminNav() {
             )}
           >
             <Icon className="size-4" />
-            {label}
+            {t.nav[label]}
           </Link>
         );
       })}

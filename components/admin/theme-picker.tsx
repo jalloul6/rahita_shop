@@ -6,16 +6,19 @@ import { Button } from "@/components/ui/button";
 import { saveTheme, type ThemeState } from "@/app/(admin)/admin/appearance/actions";
 import { THEMES, type ThemeId } from "@/lib/themes";
 import { cn } from "@/lib/utils";
+import { useAdminT } from "@/lib/i18n/admin-client";
 
 const SWATCHES = [
-  { token: "bg-background", label: "Background" },
-  { token: "bg-card", label: "Cards" },
-  { token: "bg-primary", label: "Buttons" },
-  { token: "bg-highlight", label: "Accent" },
-  { token: "bg-hero", label: "Banner" },
-];
+  { token: "bg-background", label: "background" },
+  { token: "bg-card", label: "cards" },
+  { token: "bg-primary", label: "buttons" },
+  { token: "bg-highlight", label: "accent" },
+  { token: "bg-hero", label: "banner" },
+] as const;
 
 export function ThemePicker({ current }: { current: ThemeId }) {
+  const { t: tr } = useAdminT();
+  const a = tr.appearance;
   const [state, action, pending] = useActionState<ThemeState, FormData>(saveTheme, {});
   const [selected, setSelected] = useState<ThemeId>(current);
 
@@ -45,7 +48,7 @@ export function ThemePicker({ current }: { current: ThemeId }) {
               <div data-theme={t.id} className="space-y-3 bg-background p-4 text-foreground">
                 <div className="flex items-center justify-between rounded-md bg-hero px-3 py-1.5 text-xs text-hero-foreground">
                   <span className="font-heading font-semibold">Rahita</span>
-                  <span>Shop · Cart</span>
+                  <span>{a.previewNav}</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {[0, 1, 2].map((i) => (
@@ -54,7 +57,7 @@ export function ThemePicker({ current }: { current: ThemeId }) {
                       <div className="h-1.5 w-3/4 rounded bg-muted-foreground/40" />
                       <div className="text-[0.65rem] font-semibold text-highlight">$45.00</div>
                       <div className="rounded-md bg-primary py-1 text-center text-[0.6rem] font-medium text-primary-foreground">
-                        Add to cart
+                        {a.addToCart}
                       </div>
                     </div>
                   ))}
@@ -63,7 +66,7 @@ export function ThemePicker({ current }: { current: ThemeId }) {
                   {SWATCHES.map((s) => (
                     <span
                       key={s.token}
-                      title={s.label}
+                      title={a.swatches[s.label]}
                       className={cn("size-6 rounded-full border border-foreground/15 shadow-sm", s.token)}
                     />
                   ))}
@@ -72,8 +75,8 @@ export function ThemePicker({ current }: { current: ThemeId }) {
 
               <div className="flex items-start justify-between gap-3 border-t p-4">
                 <div>
-                  <div className="font-medium">{t.name}</div>
-                  <p className="text-sm text-muted-foreground">{t.description}</p>
+                  <div className="font-medium">{a.themes[t.id].name}</div>
+                  <p className="text-sm text-muted-foreground">{a.themes[t.id].description}</p>
                 </div>
                 <span
                   className={cn(
@@ -86,8 +89,8 @@ export function ThemePicker({ current }: { current: ThemeId }) {
                 </span>
               </div>
               {current === t.id && (
-                <span className="absolute top-2 right-2 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium text-foreground shadow">
-                  Live
+                <span className="absolute end-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium text-foreground shadow">
+                  {a.live}
                 </span>
               )}
             </label>
@@ -97,10 +100,10 @@ export function ThemePicker({ current }: { current: ThemeId }) {
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending || selected === current}>
-          {pending ? "Saving…" : "Save & apply theme"}
+          {pending ? tr.common.saving : a.saveTheme}
         </Button>
         <a href="/" target="_blank" rel="noopener noreferrer" className="text-sm underline-offset-4 hover:underline">
-          Open store in a new tab
+          {tr.common.openStore}
         </a>
         {state.error && (
           <p role="alert" className="text-sm text-destructive">

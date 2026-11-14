@@ -10,7 +10,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { ORDER_SOURCE_LABELS, orderRef } from "@/lib/orders";
+import { orderRef } from "@/lib/orders";
+import { getAdminT } from "@/lib/i18n/admin-server";
 import { waLink } from "@/lib/settings";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
@@ -21,7 +22,7 @@ type Props = PageProps<"/admin/customers/[phone]">;
 
 export default function CustomerPage(props: Props) {
   return (
-    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading customer…</p>}>
+    <Suspense fallback={<p className="text-sm text-muted-foreground">…</p>}>
       <Customer params={props.params} />
     </Suspense>
   );
@@ -40,18 +41,20 @@ async function Customer({ params }: { params: Props["params"] }) {
 
   const customer = list.data?.find((c) => c.phone_key === key);
   if (!customer) notFound();
+  const t = await getAdminT();
+  const x = t.customers;
   const history = orders.data ?? [];
 
   return (
     <div className="space-y-6">
       <Link href="/admin/customers" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Back to customers
+        <ArrowLeft className="size-4 rtl:rotate-180" /> {x.back}
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{customer.customer_name}</h1>
-          <p className="text-sm text-muted-foreground">Last order {formatDateTime(customer.last_order_at)}</p>
+          <p className="text-sm text-muted-foreground">{x.lastOrderAt(formatDateTime(customer.last_order_at))}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <a
@@ -63,16 +66,16 @@ async function Customer({ params }: { params: Props["params"] }) {
             <MessageCircle className="size-4" /> WhatsApp
           </a>
           <Link href="/admin/orders/new" className={cn(buttonVariants())}>
-            <Plus className="size-4" /> New order
+            <Plus className="size-4" /> {t.pos.title}
           </Link>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Orders" value={String(customer.orders_count)} />
-        <Stat label="Total spent (net)" value={formatMoney(Number(customer.total_spent))} />
+        <Stat label={x.orders} value={String(customer.orders_count)} />
+        <Stat label={x.totalSpentNet} value={formatMoney(Number(customer.total_spent))} />
         <Stat
-          label="Average order"
+          label={x.averageOrder}
           value={formatMoney(customer.orders_count > 0 ? Number(customer.total_spent) / Number(customer.orders_count) : 0)}
         />
       </div>
@@ -80,22 +83,22 @@ async function Customer({ params }: { params: Props["params"] }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Details</CardTitle>
+            <CardTitle>{x.details}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div>
-              <div className="text-xs text-muted-foreground">Phone</div>
-              <a href={`tel:${customer.phone}`} className="tabular-nums hover:underline">
+              <div className="text-xs text-muted-foreground">{t.common.phone}</div>
+              <a href={`tel:${customer.phone}`} className="tabular-nums hover:underline" dir="ltr">
                 {customer.phone}
               </a>
-              {customer.phone2 && <div className="tabular-nums text-muted-foreground">{customer.phone2}</div>}
+              {customer.phone2 && <div className="tabular-nums text-muted-foreground" dir="ltr">{customer.phone2}</div>}
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Zone</div>
+              <div className="text-xs text-muted-foreground">{t.common.zone}</div>
               {customer.zone_name ?? "—"}
             </div>
             <div className="whitespace-pre-wrap">
-              <div className="text-xs text-muted-foreground">Latest address</div>
+              <div className="text-xs text-muted-foreground">{x.latestAddress}</div>
               {customer.address || "—"}
             </div>
           </CardContent>
@@ -103,7 +106,7 @@ async function Customer({ params }: { params: Props["params"] }) {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Private notes</CardTitle>
+            <CardTitle>{x.privateNotes}</CardTitle>
           </CardHeader>
           <CardContent>
             <CustomerNoteForm phoneKey={key} note={note.data?.note ?? ""} />
@@ -113,17 +116,17 @@ async function Customer({ params }: { params: Props["params"] }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Order history</CardTitle>
+          <CardTitle>{x.orderHistory}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+                <TableHead>{t.common.order}</TableHead>
+                <TableHead>{t.common.date}</TableHead>
+                <TableHead>{t.common.status}</TableHead>
+                <TableHead>{t.common.payment}</TableHead>
+                <TableHead className="text-end">{t.common.total}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -134,7 +137,7 @@ async function Customer({ params }: { params: Props["params"] }) {
                       {orderRef(o.order_number)}
                     </Link>
                     {o.order_source !== "online" && (
-                      <div className="text-xs text-muted-foreground">{ORDER_SOURCE_LABELS[o.order_source]}</div>
+                      <div className="text-xs text-muted-foreground">{t.source[o.order_source]}</div>
                     )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-muted-foreground">{formatDateTime(o.created_at)}</TableCell>
@@ -144,9 +147,9 @@ async function Customer({ params }: { params: Props["params"] }) {
                   <TableCell>
                     <PaymentBadge method={o.payment_method} status={o.payment_status} />
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-end tabular-nums">
                     {formatMoney(o.total_amount)}
-                    {o.refunded_amount > 0 && <div className="text-xs text-rose-700">−{formatMoney(o.refunded_amount)} refunded</div>}
+                    {o.refunded_amount > 0 && <div className="text-xs text-rose-700">{t.common.refundedSuffix(formatMoney(o.refunded_amount))}</div>}
                   </TableCell>
                 </TableRow>
               ))}

@@ -1,16 +1,18 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath, updateTag } from "next/cache";
 import { allowedTransitions, isOrderStatus } from "@/lib/orders";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/guard";
+import { getAdminT } from "@/lib/i18n/admin-server";
 
 export type StatusState = { error?: string; success?: string };
 
 export async function updateOrderStatus(_prev: StatusState, formData: FormData): Promise<StatusState> {
   const orderId = String(formData.get("orderId") ?? "");
   const target = formData.get("status");
-  if (!orderId || !isOrderStatus(target)) return { error: "Invalid request." };
+  const t = await getAdminT();
+  if (!orderId || !isOrderStatus(target)) return { error: t.msg.invalidRequest };
 
   const supabase = await createClient();
 
@@ -18,14 +20,14 @@ export async function updateOrderStatus(_prev: StatusState, formData: FormData):
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "You are signed out. Please log in again." };
+  if (!user) return { error: t.msg.signedOut };
   const { data: isAdmin } = await supabase.rpc("is_admin");
-  if (isAdmin !== true) return { error: "Not authorized." };
+  if (isAdmin !== true) return { error: t.msg.notAuthorized };
 
   const { data: order } = await supabase.from("orders").select("status").eq("id", orderId).maybeSingle();
-  if (!order) return { error: "Order not found." };
+  if (!order) return { error: t.msg.orderNotFound };
   if (!allowedTransitions(order.status).includes(target)) {
-    return { error: `Cannot move an order from ${order.status} to ${target}.` };
+    return { error: t.msg.badTransition(t.status[order.status], t.status[target]) };
   }
 
   // Match on the status we just read so two admins can't both apply a stale change.
@@ -37,21 +39,22 @@ export async function updateOrderStatus(_prev: StatusState, formData: FormData):
     .select("id");
 
   if (error) return { error: error.message };
-  if (!updated || updated.length === 0) return { error: "Order was changed by someone else. Refresh and retry." };
+  if (!updated || updated.length === 0) return { error: t.msg.staleOrder };
 
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
   updateTag("products"); // cancel / return restores stock
-  return { success: "Status updated." };
+  return { success: t.msg.statusUpdated };
 }
 
 export async function updatePaymentStatus(_prev: StatusState, formData: FormData): Promise<StatusState> {
   const orderId = String(formData.get("orderId") ?? "");
   const target = formData.get("payment_status");
-  if (!orderId || (target !== "paid" && target !== "pending")) return { error: "Invalid request." };
+  const t = await getAdminT();
+  if (!orderId || (target !== "paid" && target !== "pending")) return { error: t.msg.invalidRequest };
 
   const supabase = await getAdminClient();
-  if (!supabase) return { error: "Not authorized. Please sign in again." };
+  if (!supabase) return { error: t.msg.notAuthorized };
 
   const { data, error } = await supabase
     .from("orders")
@@ -59,11 +62,11 @@ export async function updatePaymentStatus(_prev: StatusState, formData: FormData
     .eq("id", orderId)
     .select("id");
   if (error) return { error: error.message };
-  if (!data || data.length === 0) return { error: "Order not found." };
+  if (!data || data.length === 0) return { error: t.msg.orderNotFound };
 
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
-  return { success: target === "paid" ? "Marked as paid." : "Marked as unpaid." };
+  return { success: target === "paid" ? t.msg.markedPaid : t.msg.markedUnpaid };
 }
 
 export type ReturnInput = {
@@ -77,13 +80,14 @@ export type ReturnInput = {
 
 // Return / Refund: partial or full. Quantities, refund cap and restocking are enforced in process_return().
 export async function processReturn(input: ReturnInput): Promise<StatusState> {
+  const t = await getAdminT();
   const supabase = await getAdminClient();
-  if (!supabase) return { error: "Not authorized. Please sign in again." };
+  if (!supabase) return { error: t.msg.notAuthorized };
 
   const items = (input.items ?? []).filter((i) => Number.isInteger(i.quantity) && i.quantity > 0);
-  if (items.length === 0) return { error: "Choose at least one item to return." };
+  if (items.length === 0) return { error: t.returns.chooseItem };
   const refund = Math.round((Number(input.refundAmount) || 0) * 100) / 100;
-  if (refund < 0) return { error: "Refund amount cannot be negative." };
+  if (refund < 0) return { error: t.msg.negativeRefund };
 
   const { error } = await supabase.rpc("process_return", {
     p_order_id: input.orderId,
@@ -96,7 +100,7 @@ export async function processReturn(input: ReturnInput): Promise<StatusState> {
   if (error) {
     return {
       error: error.message.includes("process_return")
-        ? "Run supabase/migrations/006_cms_customers_multi_exchange.sql in Supabase first."
+        ? t.msg.runMigration("006_cms_customers_multi_exchange.sql")
         : error.message,
     };
   }
@@ -104,7 +108,7 @@ export async function processReturn(input: ReturnInput): Promise<StatusState> {
   if (input.restock) updateTag("products"); // stock went back up
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${input.orderId}`);
-  return { success: "Return recorded." };
+  return { success: t.msg.returnRecorded };
 }
 
 export type ExchangeInput = {
@@ -119,15 +123,16 @@ export type ExchangeInput = {
 // new products. Stock, price difference, shipping refund and the order total are updated together
 // in process_exchange_multi().
 export async function processExchange(input: ExchangeInput): Promise<StatusState> {
+  const t = await getAdminT();
   const supabase = await getAdminClient();
-  if (!supabase) return { error: "Not authorized. Please sign in again." };
+  if (!supabase) return { error: t.msg.notAuthorized };
 
   const returns = (input.returns ?? [])
     .filter((r) => Number.isInteger(r.quantity) && r.quantity > 0)
     .map((r) => ({ order_item_id: r.order_item_id, quantity: r.quantity, restock: Boolean(r.restock), reason: r.reason?.trim().slice(0, 300) || null }));
   const newItems = (input.newItems ?? []).filter((n) => Number.isInteger(n.quantity) && n.quantity > 0);
-  if (returns.length === 0) return { error: "Choose at least one item the customer is returning." };
-  if (newItems.length === 0) return { error: "Add at least one replacement item." };
+  if (returns.length === 0) return { error: t.exchange.chooseReturn };
+  if (newItems.length === 0) return { error: t.exchange.addReplacement };
 
   const { data, error } = await supabase.rpc("process_exchange_multi", {
     p_order_id: input.orderId,
@@ -139,7 +144,7 @@ export async function processExchange(input: ExchangeInput): Promise<StatusState
   if (error) {
     return {
       error: error.message.includes("process_exchange_multi")
-        ? "Run supabase/migrations/006_cms_customers_multi_exchange.sql in Supabase first."
+        ? t.msg.runMigration("006_cms_customers_multi_exchange.sql")
         : error.message,
     };
   }
@@ -151,9 +156,9 @@ export async function processExchange(input: ExchangeInput): Promise<StatusState
   return {
     success:
       diff > 0
-        ? `Exchange recorded. Collect $${diff.toFixed(2)} from the customer.`
+        ? t.msg.exchangeCollect(`$${diff.toFixed(2)}`)
         : diff < 0
-          ? `Exchange recorded. Refund $${Math.abs(diff).toFixed(2)} to the customer.`
-          : "Exchange recorded. No price difference.",
+          ? t.msg.exchangeRefund(`$${Math.abs(diff).toFixed(2)}`)
+          : t.msg.exchangeEven,
   };
 }

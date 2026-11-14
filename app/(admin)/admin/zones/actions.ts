@@ -1,9 +1,10 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { z } from "zod";
 import { getAdminClient } from "@/lib/supabase/guard";
 import { zoneSchema } from "@/lib/validators";
+import { getAdminT } from "@/lib/i18n/admin-server";
+import { issuesMessage, type AdminDict } from "@/lib/i18n/admin";
 
 export type ZoneState = { error?: string; success?: string };
 
@@ -15,46 +16,49 @@ function parse(formData: FormData) {
   });
 }
 
-function dbError(error: { code?: string; message: string }) {
-  return error.code === "23505" ? "A zone with this name already exists." : error.message;
+function dbError(error: { code?: string; message: string }, t: AdminDict) {
+  return error.code === "23505" ? t.msg.zoneExists : error.message;
 }
 
 export async function createZone(_prev: ZoneState, formData: FormData): Promise<ZoneState> {
+  const t = await getAdminT();
   const supabase = await getAdminClient();
-  if (!supabase) return { error: "Not authorized. Please sign in again." };
+  if (!supabase) return { error: t.msg.notAuthorized };
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: z.prettifyError(parsed.error) };
+  if (!parsed.success) return { error: issuesMessage(parsed.error.issues, t) };
 
   const { error } = await supabase.from("shipping_zones").insert(parsed.data);
-  if (error) return { error: dbError(error) };
+  if (error) return { error: dbError(error, t) };
 
   revalidatePath("/admin/zones");
   updateTag("zones");
-  return { success: "Zone added." };
+  return { success: t.msg.zoneAdded };
 }
 
 export async function updateZone(_prev: ZoneState, formData: FormData): Promise<ZoneState> {
+  const t = await getAdminT();
   const supabase = await getAdminClient();
-  if (!supabase) return { error: "Not authorized. Please sign in again." };
+  if (!supabase) return { error: t.msg.notAuthorized };
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: z.prettifyError(parsed.error) };
+  if (!parsed.success) return { error: issuesMessage(parsed.error.issues, t) };
 
   const { error } = await supabase
     .from("shipping_zones")
     .update(parsed.data)
     .eq("id", String(formData.get("id") ?? ""));
-  if (error) return { error: dbError(error) };
+  if (error) return { error: dbError(error, t) };
 
   revalidatePath("/admin/zones");
   updateTag("zones");
-  return { success: "Saved." };
+  return { success: t.msg.saved };
 }
 
 export async function deleteZone(_prev: ZoneState, formData: FormData): Promise<ZoneState> {
+  const t = await getAdminT();
   const supabase = await getAdminClient();
-  if (!supabase) return { error: "Not authorized. Please sign in again." };
+  if (!supabase) return { error: t.msg.notAuthorized };
 
   const { error } = await supabase
     .from("shipping_zones")
@@ -65,12 +69,12 @@ export async function deleteZone(_prev: ZoneState, formData: FormData): Promise<
     return {
       error:
         error.code === "23503"
-          ? "This zone is used by existing orders and can't be deleted. Untick Active to hide it from checkout instead."
+          ? t.msg.zoneInOrders
           : error.message,
     };
   }
 
   revalidatePath("/admin/zones");
   updateTag("zones");
-  return { success: "Deleted." };
+  return { success: t.msg.deleted };
 }

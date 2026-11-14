@@ -1,6 +1,8 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { statusLabel } from "@/lib/orders";
+import { useAdminT } from "@/lib/i18n/admin-client";
 import type { OrderStatus } from "@/types/database";
 
 const STYLES: Record<OrderStatus, string> = {
@@ -14,9 +16,10 @@ const STYLES: Record<OrderStatus, string> = {
 };
 
 export function StatusBadge({ status }: { status: OrderStatus }) {
+  const { t } = useAdminT();
   return (
     <Badge variant="outline" className={cn("font-medium", STYLES[status])}>
-      {statusLabel(status)}
+      {t.status[status]}
     </Badge>
   );
 }
